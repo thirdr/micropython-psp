@@ -96,12 +96,19 @@ jobs:
           tools/run-ppsspp.sh build/hello/EBOOT.PBP 30
           grep -q '^hello: ok$' build/logs/latest/stdout.log
 
-      - name: Run MicroPython with no main.py (launcher placeholder)
+      - name: Run the launcher (no main.py, four scripts)
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
         run: |
-          tools/run-ppsspp.sh build/psp/EBOOT.PBP 60
-          grep -q '^No main.py in ' build/logs/latest/stdout.log
+          tools/run-ppsspp.sh --files tests/launcher build/psp/EBOOT.PBP 60
+          grep -q '^launcher: 4 scripts: countdown.py, error_demo.py, files.py, hello.py$' build/logs/latest/stdout.log
+
+      - name: Run launcher test (runs scripts with scripted button presses)
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh --files tests/launcher-run build/psp/EBOOT.PBP 60
+          grep -q '^launchertest: PASS$' build/logs/latest/stdout.log
 
       - name: Run MicroPython selftest (test build)
         env:

@@ -16,6 +16,8 @@
 // bytecode VM only.
 #define MICROPY_ENABLE_COMPILER                 (1)
 #define MICROPY_PERSISTENT_CODE_LOAD            (1)
+// compile(), so the launcher's tracebacks name the script.
+#define MICROPY_PY_BUILTINS_COMPILE             (1)
 
 // Exceptions and GC. Start with the portable setjmp paths; py/nlrmips.c
 // assumes the o32 ABI and needs checking against the PSP's ABI first.

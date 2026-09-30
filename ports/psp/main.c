@@ -42,10 +42,10 @@ PSP_HEAP_SIZE_KB(-1024);
 #define PSP_FALLBACK_MODULE "launcher.py"
 #endif
 
-static volatile int exit_requested = 0;
-
+// HOME -> Exit ends the program straight away, even mid-script: waiting for
+// a flag would leave HOME dead while the launcher or a script is running.
 static int exit_callback(int arg1, int arg2, void *common) {
-    exit_requested = 1;
+    sceKernelExitGame();
     return 0;
 }
 
@@ -63,18 +63,16 @@ static void setup_callbacks(void) {
     }
 }
 
-// Wait for HOME -> Exit, or leave straight away under PPSSPPHeadless.
+// Leave straight away under PPSSPPHeadless. Otherwise keep the output on
+// screen until HOME -> Exit, which the exit callback handles.
 static void MP_NORETURN psp_exit(void) {
     if (psp_emu_is_headless()) {
         sceDisplayWaitVblankStart();
         psp_emu_screenshot();
-    } else {
-        while (!exit_requested) {
-            sceDisplayWaitVblankStart();
-        }
+        sceKernelExitGame();
     }
-    sceKernelExitGame();
     for (;;) {
+        sceKernelSleepThread();
     }
 }
 
