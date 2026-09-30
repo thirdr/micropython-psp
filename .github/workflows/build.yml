@@ -124,6 +124,13 @@ jobs:
           tools/run-ppsspp.sh --files tests/fs build/psp/EBOOT.PBP 60
           grep -q '^fstest: PASS$' build/logs/latest/stdout.log
 
+      - name: Run standard-module test
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh --files tests/modules build/psp/EBOOT.PBP 60
+          grep -q '^modtest: PASS$' build/logs/latest/stdout.log
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

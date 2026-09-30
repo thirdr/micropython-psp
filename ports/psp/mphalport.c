@@ -46,3 +46,9 @@ int mp_hal_stdin_rx_chr(void) {
         mp_hal_delay_ms(10);
     }
 }
+
+// Seed for the random module, taken when it's first imported. The low word
+// of the system timer varies with how long the user took to get there.
+uint32_t psp_random_seed(void) {
+    return sceKernelGetSystemTimeLow() ^ (uint32_t)(mp_hal_time_ns() / 1000);
+}

@@ -3,6 +3,7 @@
 
 #include <psptypes.h>
 #include <pspkernel.h>
+#include <psprtc.h>
 
 #include "py/mpconfig.h"
 
@@ -21,8 +22,16 @@ static inline mp_uint_t mp_hal_ticks_cpu(void) {
     return (mp_uint_t)sceKernelGetSystemTimeLow();
 }
 
+// RTC ticks count from 0001-01-01 UTC; this is the offset to 1970-01-01.
+#define PSP_RTC_EPOCH_1970_SECONDS (62135596800ULL)
+
+// Wall-clock time in nanoseconds since 1970 (UTC), from the RTC.
 static inline uint64_t mp_hal_time_ns(void) {
-    return (uint64_t)sceKernelGetSystemTimeWide() * 1000;
+    u64 tick;
+    sceRtcGetCurrentTick(&tick);
+    uint64_t res = sceRtcGetTickResolution();
+    uint64_t secs = tick / res - PSP_RTC_EPOCH_1970_SECONDS;
+    return secs * 1000000000ULL + (tick % res) * (1000000000ULL / res);
 }
 
 static inline void mp_hal_delay_us(mp_uint_t us) {

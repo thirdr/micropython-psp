@@ -54,6 +54,7 @@ set(MICROPY_SOURCE_SHARED
     ${MICROPY_DIR}/shared/readline/readline.c
     ${MICROPY_DIR}/shared/runtime/gchelper_generic.c
     ${MICROPY_DIR}/shared/runtime/pyexec.c
+    ${MICROPY_DIR}/shared/timeutils/timeutils.c
 )
 
 set(MICROPY_SOURCE_PORT
@@ -108,6 +109,7 @@ target_link_libraries(${MICROPY_TARGET} PRIVATE
     pspdisplay
     pspge
     psppower
+    psprtc
     m
 )
 
