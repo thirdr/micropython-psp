@@ -84,14 +84,6 @@ typedef struct {
 static button_edges_t pressed_edges;
 static button_edges_t released_edges;
 
-// Forget what pressed() and released() last saw, so their next calls count as
-// first calls. The launcher calls this (through _launcher) before each
-// script, as scripts share one MicroPython session and so this state.
-void psp_buttons_reset(void) {
-    pressed_edges.primed = 0;
-    released_edges.primed = 0;
-}
-
 // The buttons whose state changed since the last call with this `edges`,
 // keeping those that are now down (want_down) or now up.
 static u32 button_changes(button_edges_t *edges, int want_down) {
@@ -119,19 +111,64 @@ static mp_obj_t psp_released(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(psp_released_obj, psp_released);
 
-// analog(): the stick as (x, y), each -128..127 with 0 at the centre;
-// x grows to the right and y grows downwards. There's no dead zone: a
-// resting stick often reads a few units off centre.
+// The analog stick's dead zone, set with set_deadzone(). A resting stick
+// reads up to about 10 off centre on a PSP-1000, and more as sticks wear.
+#define DEADZONE_DEFAULT 16
+static int deadzone = DEADZONE_DEFAULT;
+
+// One stick axis, 0..255 from the hardware, to -127..127. Within the dead
+// zone it's 0; beyond it the rest of the range is stretched back to 127, so
+// there's no jump at the dead zone's edge.
+static mp_int_t stick_axis(unsigned char raw) {
+    mp_int_t v = (mp_int_t)raw - 128;
+    mp_int_t mag = v < 0 ? -v : v;
+    if (mag <= deadzone) {
+        return 0;
+    }
+    mag = (mag - deadzone) * 127 / (127 - deadzone);
+    if (mag > 127) {
+        mag = 127;
+    }
+    return v < 0 ? -mag : mag;
+}
+
+// analog(): the stick as (x, y), each -127..127 with 0 at the centre;
+// x grows to the right and y grows downwards. Readings inside the dead zone
+// (see set_deadzone) are 0.
 static mp_obj_t psp_analog(void) {
     SceCtrlData pad;
     ctrl_read(&pad);
     mp_obj_t xy[2] = {
-        MP_OBJ_NEW_SMALL_INT((mp_int_t)pad.Lx - 128),
-        MP_OBJ_NEW_SMALL_INT((mp_int_t)pad.Ly - 128),
+        MP_OBJ_NEW_SMALL_INT(stick_axis(pad.Lx)),
+        MP_OBJ_NEW_SMALL_INT(stick_axis(pad.Ly)),
     };
     return mp_obj_new_tuple(2, xy);
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(psp_analog_obj, psp_analog);
+
+// set_deadzone(n): how far from centre, 0-126, the stick must move before
+// analog() reads anything but 0. The default is 16; 0 gives raw readings.
+// Each script run from the launcher starts with the default.
+static mp_obj_t psp_set_deadzone(mp_obj_t n_in) {
+    mp_int_t n = mp_obj_get_int(n_in);
+    if (n < 0 || n > 126) {
+        mp_raise_ValueError(MP_ERROR_TEXT("deadzone must be 0-126"));
+    }
+    deadzone = n;
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(psp_set_deadzone_obj, psp_set_deadzone);
+
+// Put the input state back as a new script expects it: pressed() and
+// released() forget what they last saw (so their next calls count as first
+// calls) and the dead zone returns to the default. The launcher calls this
+// (through _launcher) before each script, as scripts share one MicroPython
+// session and so this state.
+void psp_buttons_reset(void) {
+    pressed_edges.primed = 0;
+    released_edges.primed = 0;
+    deadzone = DEADZONE_DEFAULT;
+}
 
 // vsync(): wait for the start of the next display refresh (60 Hz).
 static mp_obj_t psp_vsync(void) {
@@ -208,6 +245,7 @@ static const mp_rom_map_elem_t psp_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_pressed), MP_ROM_PTR(&psp_pressed_obj) },
     { MP_ROM_QSTR(MP_QSTR_released), MP_ROM_PTR(&psp_released_obj) },
     { MP_ROM_QSTR(MP_QSTR_analog), MP_ROM_PTR(&psp_analog_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_deadzone), MP_ROM_PTR(&psp_set_deadzone_obj) },
     { MP_ROM_QSTR(MP_QSTR_vsync), MP_ROM_PTR(&psp_vsync_obj) },
     { MP_ROM_QSTR(MP_QSTR_battery), MP_ROM_PTR(&psp_battery_obj) },
     { MP_ROM_QSTR(MP_QSTR_battery_minutes), MP_ROM_PTR(&psp_battery_minutes_obj) },

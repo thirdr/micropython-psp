@@ -22,8 +22,11 @@ while True:
         last_held = held
     if frame % 60 == 0:
         x, y = psp.analog()
-        print("stick: {:4d} {:4d}  battery: {}%  charging: {}  ac: {}".format(
-            x, y, psp.battery(), psp.charging(), psp.on_ac()))
+        psp.set_deadzone(0)
+        rx, ry = psp.analog()
+        psp.set_deadzone(16)
+        print("stick: {:4d} {:4d} (raw {:4d} {:4d})  battery: {}%  ac: {}".format(
+            x, y, rx, ry, psp.battery(), psp.on_ac()))
     frame += 1
     psp.vsync()
 print("stopped")

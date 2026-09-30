@@ -20,8 +20,9 @@ OUT="$REPO/build/mp-tests"
 EXPECTED_FAILURES=(
     # The unix binary's command-line options; the PSP has no command line.
     '^cmdline/'
-    # The PSP's FAT driver lists lowercase 8.3 names in upper case
-    # ("test2" lists as "TEST2").
+    # PPSSPP lists lowercase 8.3 names in upper case ("test2" lists as
+    # "TEST2"). A real PSP-1000 lists files copied from a Mac in lower case
+    # (checked 2026-09-30); files created on the PSP itself are unchecked.
     '^extmod/vfs_posix\.py$'
     '^extmod/vfs_posix_ilistdir_filter\.py$'
     # The PSP keeps the working directory as a string, so getcwd() still

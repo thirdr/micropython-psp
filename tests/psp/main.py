@@ -60,10 +60,20 @@ def t_released():
 
 
 def t_analog():
+    # PPSSPP's resting stick is centred, so it reads 0 inside the default
+    # dead zone, and near 0 raw.
     xy = psp.analog()
-    ok = isinstance(xy, tuple) and len(xy) == 2
-    ok = ok and all(-128 <= v <= 127 for v in xy) and all(abs(v) <= 16 for v in xy)
-    return ok, repr(xy)
+    ok = isinstance(xy, tuple) and len(xy) == 2 and xy == (0, 0)
+    psp.set_deadzone(0)
+    raw = psp.analog()
+    ok = ok and all(-127 <= v <= 127 and abs(v) <= 16 for v in raw)
+    psp.set_deadzone(16)
+    try:
+        psp.set_deadzone(127)
+        ok = False
+    except ValueError:
+        pass
+    return ok, "default={} raw={}".format(xy, raw)
 
 
 def t_vsync():

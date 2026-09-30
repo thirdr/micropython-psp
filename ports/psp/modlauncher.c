@@ -96,7 +96,8 @@ static mp_obj_t launcher_buttons(void) {
 static MP_DEFINE_CONST_FUN_OBJ_0(launcher_buttons_obj, launcher_buttons);
 
 // reset_buttons(): make the next psp.pressed()/psp.released() calls count as
-// first calls, so a script doesn't see the previous script's buttons.
+// first calls, and put the stick's dead zone back to the default, so a script
+// doesn't inherit the previous script's input state.
 void psp_buttons_reset(void);
 
 static mp_obj_t launcher_reset_buttons(void) {
