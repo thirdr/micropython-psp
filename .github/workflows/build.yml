@@ -36,6 +36,11 @@ jobs:
           psp-cmake -S ports/psp -B build/psp -DCMAKE_BUILD_TYPE=Release
           cmake --build build/psp -j"$(nproc)"
 
+      - name: Build MicroPython (test build, with the frozen selftest)
+        run: |
+          psp-cmake -S ports/psp -B build/psp-test -DCMAKE_BUILD_TYPE=Release -DMICROPY_PSP_TEST_BUILD=ON
+          cmake --build build/psp-test -j"$(nproc)"
+
       - uses: actions/upload-artifact@v4
         with:
           name: eboots
@@ -45,6 +50,8 @@ jobs:
             build/hello/hello
             build/psp/EBOOT.PBP
             build/psp/micropython
+            build/psp-test/EBOOT.PBP
+            build/psp-test/micropython
 
   test:
     needs: build
@@ -89,12 +96,26 @@ jobs:
           tools/run-ppsspp.sh build/hello/EBOOT.PBP 30
           grep -q '^hello: ok$' build/logs/latest/stdout.log
 
-      - name: Run MicroPython selftest
+      - name: Run MicroPython with no main.py (launcher placeholder)
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
         run: |
           tools/run-ppsspp.sh build/psp/EBOOT.PBP 60
+          grep -q '^No main.py in ' build/logs/latest/stdout.log
+
+      - name: Run MicroPython selftest (test build)
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh build/psp-test/EBOOT.PBP 60
           grep -q '^selftest: PASS$' build/logs/latest/stdout.log
+
+      - name: Run filesystem test
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh --files tests/fs build/psp/EBOOT.PBP 60
+          grep -q '^fstest: PASS$' build/logs/latest/stdout.log
 
       - uses: actions/upload-artifact@v4
         if: always()

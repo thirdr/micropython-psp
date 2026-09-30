@@ -2,7 +2,10 @@
 # Open an EBOOT/ELF in the PPSSPP window, and show the program's stdout in
 # this terminal.
 #
-# Usage: tools/run-gui.sh path/to/EBOOT.PBP
+# Usage: tools/run-gui.sh [--files DIR] path/to/EBOOT.PBP
+#
+# --files DIR copies the EBOOT and DIR's contents (main.py, lib/, ...) into
+# build/logs/gui-app/ and runs it from there, as tools/run-ppsspp.sh does.
 #
 # Closing the window (or HOME -> Exit in the program) ends the run. The
 # emulator log is kept in build/logs/gui-latest.log, and PPSSPP's own console
@@ -19,12 +22,32 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GUI="${PPSSPP_GUI:-/Applications/PPSSPPSDL.app/Contents/MacOS/PPSSPPSDL}"
 INI="${PPSSPP_INI:-$HOME/.config/ppsspp/PSP/SYSTEM/ppsspp.ini}"
 
+files=""
+if [ "${1:-}" = "--files" ]; then
+    files="${2:?--files needs a directory}"
+    shift 2
+    if [ ! -d "$files" ]; then
+        echo "no such directory: $files" >&2
+        exit 2
+    fi
+fi
+
 if [ $# -lt 1 ]; then
-    echo "usage: $0 path/to/EBOOT.PBP" >&2
+    echo "usage: $0 [--files DIR] path/to/EBOOT.PBP" >&2
     exit 2
 fi
 
 target="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+
+if [ -n "$files" ]; then
+    app="$REPO/build/logs/gui-app"
+    rm -rf "$app"
+    mkdir -p "$app"
+    cp -R "$files/." "$app/"
+    cp "$target" "$app/EBOOT.PBP"
+    target="$app/EBOOT.PBP"
+fi
+
 log="$REPO/build/logs/gui-latest.log"
 console="$REPO/build/logs/gui-console.log"
 mkdir -p "$(dirname "$log")"

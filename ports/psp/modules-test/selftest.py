@@ -1,6 +1,8 @@
-# Phase 1 checks. Each prints "selftest: <name>: ok" or "... FAIL <detail>",
-# then a summary line that tools/run-ppsspp.sh output can be grepped for.
+# Built into test builds only (MICROPY_PSP_TEST_BUILD). Runs when there's no
+# main.py. Each check prints "selftest: <name>: ok" or "... FAIL <detail>",
+# then a summary line that CI greps for.
 import gc
+import sys
 
 _failures = 0
 
@@ -61,8 +63,14 @@ def gc_stress():
 
 
 def run():
+    print("Hello from MicroPython on", sys.platform)
+    print(sys.implementation.name, sys.version)
     arithmetic()
     floats()
     exceptions()
     gc_stress()
     print("selftest: {}".format("PASS" if _failures == 0 else "FAIL ({} failed)".format(_failures)))
+
+
+if __name__ == "__main__":
+    run()

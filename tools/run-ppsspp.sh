@@ -2,12 +2,18 @@
 # Run an EBOOT/ELF in PPSSPPHeadless, show its stdout live, and save a
 # screenshot of the PSP screen.
 #
-# Usage: tools/run-ppsspp.sh path/to/EBOOT.PBP [timeout-seconds]
+# Usage: tools/run-ppsspp.sh [--files DIR] path/to/EBOOT.PBP [timeout-seconds]
 #
 # Each run goes in build/logs/<name>-<timestamp>/ (build/logs/latest points
 # at the newest), containing:
 #   stdout.log   everything the program printed
 #   screen.png   the screen at the program's last psp_emu_screenshot() call
+#   app/         with --files: the EBOOT plus DIR's contents, run from there
+#
+# --files DIR stages scripts next to the EBOOT. PPSSPP runs an EBOOT that's
+# outside a PSP/GAME folder with its own folder as the working directory
+# (umd0:/), so DIR's main.py, lib/ etc. are what the port finds, just as on a
+# PSP. Anything the program writes stays in app/ for inspection.
 #
 # The exit status is PPSSPPHeadless's, except that a timeout is reported as
 # 124 (matching coreutils' timeout).
@@ -18,8 +24,18 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HEADLESS="${PPSSPP_HEADLESS:-$REPO/../ppsspp/build-headless/PPSSPPHeadless}"
 
+files=""
+if [ "${1:-}" = "--files" ]; then
+    files="${2:?--files needs a directory}"
+    shift 2
+    if [ ! -d "$files" ]; then
+        echo "no such directory: $files" >&2
+        exit 2
+    fi
+fi
+
 if [ $# -lt 1 ]; then
-    echo "usage: $0 path/to/EBOOT.PBP [timeout-seconds]" >&2
+    echo "usage: $0 [--files DIR] path/to/EBOOT.PBP [timeout-seconds]" >&2
     exit 2
 fi
 
@@ -36,8 +52,16 @@ if [ ! -f "$target" ]; then
 fi
 
 name="$(basename "$(dirname "$target")")"
+[ -n "$files" ] && name="$name-$(basename "$(cd "$files" && pwd)")"
 logdir="$REPO/build/logs/$name-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$logdir"
+
+if [ -n "$files" ]; then
+    mkdir -p "$logdir/app"
+    cp -R "$files/." "$logdir/app/"
+    cp "$target" "$logdir/app/EBOOT.PBP"
+    target="$logdir/app/EBOOT.PBP"
+fi
 ln -sfn "$logdir" "$REPO/build/logs/latest"
 
 # PPSSPPHeadless can only save a screenshot when a comparison "fails". Compare

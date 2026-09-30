@@ -1,9 +1,11 @@
 // MicroPython entry point for the Sony PSP.
 //
-// Phase 1: sets up the PSP (clock, exit callback, debug screen), starts
-// MicroPython with a GC heap from malloc, and runs the frozen main.py. Under
-// PPSSPPHeadless it captures the screen and exits by itself; in the PPSSPP GUI
-// or on hardware it waits for HOME -> Exit.
+// Sets up the PSP (clock, exit callback, debug screen), starts MicroPython
+// with a GC heap from malloc, mounts the filesystem, and runs boot.py then
+// main.py from the EBOOT's folder (the working directory). Without a main.py
+// it runs the launcher, or the selftest in test builds. Under PPSSPPHeadless
+// it captures the screen and exits by itself; in the PPSSPP GUI or on
+// hardware it waits for HOME -> Exit.
 #include <stdlib.h>
 
 #include <pspkernel.h>
@@ -18,6 +20,8 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"
 #include "py/runtime.h"
+#include "extmod/vfs.h"
+#include "extmod/vfs_posix.h"
 #include "shared/runtime/gchelper.h"
 #include "shared/runtime/pyexec.h"
 
@@ -29,6 +33,14 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_MAIN_THREAD_STACK_SIZE_KB(MICROPY_PSP_MAIN_STACK_KB);
 // Give newlib all of user memory except 1 MB, for the GC heap and C code.
 PSP_HEAP_SIZE_KB(-1024);
+
+// What runs when there's no main.py: the launcher, or the selftest in test
+// builds (MICROPY_PSP_TEST_BUILD in CMakeLists.txt).
+#if MICROPY_PSP_TEST_BUILD
+#define PSP_FALLBACK_MODULE "selftest.py"
+#else
+#define PSP_FALLBACK_MODULE "launcher.py"
+#endif
 
 static volatile int exit_requested = 0;
 
@@ -66,6 +78,21 @@ static void MP_NORETURN psp_exit(void) {
     }
 }
 
+// Mount newlib's filesystem at "/" and make it the current VFS, so relative
+// paths resolve against the working directory. As in ports/unix: don't use
+// chdir("/"), which would change the VfsPosix object's own path.
+static void mount_filesystem(void) {
+    mp_obj_t args[2] = {
+        MP_OBJ_TYPE_GET_SLOT(&mp_type_vfs_posix, make_new)(&mp_type_vfs_posix, 0, 0, NULL),
+        MP_OBJ_NEW_QSTR(MP_QSTR__slash_),
+    };
+    mp_vfs_mount(2, args, (mp_map_t *)&mp_const_empty_map);
+    MP_STATE_VM(vfs_cur) = MP_STATE_VM(vfs_mount_table);
+    while (MP_STATE_VM(vfs_cur)->next != NULL) {
+        MP_STATE_VM(vfs_cur) = MP_STATE_VM(vfs_cur)->next;
+    }
+}
+
 int main(int argc, char *argv[]) {
     setup_callbacks();
     scePowerSetClockFrequency(333, 333, 166);
@@ -83,7 +110,16 @@ int main(int argc, char *argv[]) {
     gc_init(heap, heap + heap_size);
 
     mp_init();
-    pyexec_frozen_module("main.py", false);
+    mount_filesystem();
+    // sys.path is ['', '.frozen'] by default; add the EBOOT folder's lib/.
+    mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_lib));
+
+    pyexec_file_if_exists("boot.py");
+    if (mp_import_stat("main.py") == MP_IMPORT_STAT_FILE) {
+        pyexec_file("main.py");
+    } else {
+        pyexec_frozen_module(PSP_FALLBACK_MODULE, false);
+    }
     mp_deinit();
 
     psp_exit();
@@ -94,20 +130,6 @@ void gc_collect(void) {
     gc_helper_collect_regs_and_stack();
     gc_collect_end();
 }
-
-mp_lexer_t *mp_lexer_new_from_file(qstr filename) {
-    mp_raise_OSError(MP_ENOENT);
-}
-
-mp_import_stat_t mp_import_stat(const char *path) {
-    return MP_IMPORT_STAT_NO_EXIST;
-}
-
-// No filesystem until Phase 2, but the io module needs open() to exist.
-mp_obj_t mp_builtin_open(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs) {
-    mp_raise_OSError(MP_ENOENT);
-}
-MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);
 
 void nlr_jump_fail(void *val) {
     mp_hal_stdout_tx_str("FATAL: uncaught NLR\n");

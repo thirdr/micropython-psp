@@ -1,7 +1,7 @@
 // MicroPython configuration for the Sony PSP.
 //
-// Phase 1: core features only, no filesystem and no REPL. Scripts come from
-// frozen modules (see manifest.py).
+// Core features, plus a filesystem: scripts load from the EBOOT's folder
+// (the working directory). No REPL yet.
 #include <stdint.h>
 #include <alloca.h>
 
@@ -22,6 +22,7 @@
 #define MICROPY_NLR_SETJMP                      (1)
 #define MICROPY_GCREGS_SETJMP                   (1)
 #define MICROPY_ENABLE_GC                       (1)
+#define MICROPY_ENABLE_FINALISER                (1)
 #define MICROPY_STACK_CHECK                     (1)
 #define MICROPY_STACK_CHECK_MARGIN              (8 * 1024)
 
@@ -37,7 +38,13 @@
 // Use newlib's printf rather than MicroPython's own.
 #define MICROPY_USE_INTERNAL_PRINTF             (0)
 
-// Modules. Frozen modules only until the filesystem arrives in Phase 2.
+// Filesystem. VfsPosix passes file operations through to newlib, which
+// maps them onto the PSP's own file calls (ms0:/, host0:/, umd0:/).
+#define MICROPY_VFS                             (1)
+#define MICROPY_VFS_POSIX                       (1)
+#define MICROPY_READER_VFS                      (1)
+
+// Modules.
 #define MICROPY_MODULE_FROZEN_MPY               (1)
 #define MICROPY_ENABLE_EXTERNAL_IMPORT          (1)
 #define MICROPY_PY_SYS_PATH                     (1)
@@ -46,7 +53,7 @@
 #define MICROPY_PY_TIME_TIME_TIME_NS            (1)
 #define MICROPY_PY_TIME_GMTIME_LOCALTIME_MKTIME (0)
 #define MICROPY_PY_TIME_INCLUDEFILE             "ports/psp/modtime.c"
-#define MICROPY_PY_OS                           (0)
+#define MICROPY_PY_OS                           (1)
 
 #define MICROPY_ALLOC_PATH_MAX                  (256)
 

@@ -37,4 +37,24 @@ static inline void mp_hal_set_interrupt_char(char c) {
     (void)c;
 }
 
+// Used by VfsPosix to retry a file call interrupted with EINTR (PEP 475).
+// Taken from ports/unix/mphalport.h.
+#include <errno.h>
+#define MP_HAL_RETRY_SYSCALL(ret, syscall, raise) { \
+        for (;;) { \
+            MP_THREAD_GIL_EXIT(); \
+            ret = syscall; \
+            MP_THREAD_GIL_ENTER(); \
+            if (ret == -1) { \
+                int err = errno; \
+                if (err == EINTR) { \
+                    mp_handle_pending(MP_HANDLE_PENDING_CALLBACKS_AND_EXCEPTIONS); \
+                    continue; \
+                } \
+                raise; \
+            } \
+            break; \
+        } \
+}
+
 #endif // MICROPY_INCLUDED_PSP_MPHALPORT_H
