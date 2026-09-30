@@ -1,0 +1,103 @@
+# Build the EBOOTs with the pspdev toolchain, then run them in PPSSPPHeadless
+# and check their stdout.
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Keep in step with the local PPSSPPHeadless (see HANDOVER.md).
+  PPSSPP_VERSION: v1.20.4
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: pspdev/pspdev:latest
+    steps:
+      - name: Install host tools
+        # The image is Alpine-based; mpy-cross needs a host C compiler.
+        run: apk add --no-cache build-base cmake git python3
+
+      - uses: actions/checkout@v4
+        with:
+          # Top-level submodules only: the build doesn't use micropython's
+          # own submodules (see ports/psp/CMakeLists.txt).
+          submodules: true
+
+      - name: Build hello-world
+        run: |
+          psp-cmake -S tools/hello -B build/hello -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/hello
+
+      - name: Build MicroPython
+        run: |
+          psp-cmake -S ports/psp -B build/psp -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/psp -j"$(nproc)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eboots
+          # The ELFs are kept for psp-addr2line on crash dumps.
+          path: |
+            build/hello/EBOOT.PBP
+            build/hello/hello
+            build/psp/EBOOT.PBP
+            build/psp/micropython
+
+  test:
+    needs: build
+    # Pinned so the cached PPSSPPHeadless matches the runner's libraries.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PPSSPP dependencies
+        run: |
+          sudo apt-get update -y -qq
+          sudo apt-get install -y -qq libsdl2-dev libgl1-mesa-dev libglu1-mesa-dev libfontconfig1-dev
+
+      - name: Restore PPSSPPHeadless
+        id: ppsspp-cache
+        uses: actions/cache@v4
+        with:
+          path: ppsspp-headless
+          key: ppsspp-headless-${{ env.PPSSPP_VERSION }}-ubuntu-24.04
+
+      - name: Build PPSSPPHeadless
+        if: steps.ppsspp-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --branch "$PPSSPP_VERSION" --depth 1 --recurse-submodules --shallow-submodules \
+            https://github.com/hrydgard/ppsspp.git ppsspp-src
+          cmake -S ppsspp-src -B ppsspp-src/build -DHEADLESS=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build ppsspp-src/build --target PPSSPPHeadless -j"$(nproc)"
+          # PPSSPPHeadless looks for assets/ next to itself.
+          mkdir -p ppsspp-headless
+          cp ppsspp-src/build/PPSSPPHeadless ppsspp-headless/
+          cp -r ppsspp-src/build/assets ppsspp-headless/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: eboots
+          path: build
+
+      - name: Run hello-world
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh build/hello/EBOOT.PBP 30
+          grep -q '^hello: ok$' build/logs/latest/stdout.log
+
+      - name: Run MicroPython selftest
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh build/psp/EBOOT.PBP 60
+          grep -q '^selftest: PASS$' build/logs/latest/stdout.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: headless-logs
+          path: build/logs/
