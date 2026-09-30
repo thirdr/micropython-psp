@@ -147,6 +147,7 @@ def restore_cwd(cwd):
 
 def run_script(name):
     wait_release()
+    ui.reset_buttons()
     ui.console()
     cwd = os.getcwd()
     scope = {"__name__": "__main__", "__file__": name}

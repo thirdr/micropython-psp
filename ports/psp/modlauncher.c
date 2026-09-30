@@ -95,6 +95,16 @@ static mp_obj_t launcher_buttons(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(launcher_buttons_obj, launcher_buttons);
 
+// reset_buttons(): make the next psp.pressed()/psp.released() calls count as
+// first calls, so a script doesn't see the previous script's buttons.
+void psp_buttons_reset(void);
+
+static mp_obj_t launcher_reset_buttons(void) {
+    psp_buttons_reset();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(launcher_reset_buttons_obj, launcher_reset_buttons);
+
 // headless(): True under PPSSPPHeadless, which has no buttons.
 static mp_obj_t launcher_headless(void) {
     return mp_obj_new_bool(psp_emu_is_headless());
@@ -122,6 +132,7 @@ static const mp_rom_map_elem_t launcher_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_text), MP_ROM_PTR(&launcher_text_obj) },
     { MP_ROM_QSTR(MP_QSTR_console), MP_ROM_PTR(&launcher_console_obj) },
     { MP_ROM_QSTR(MP_QSTR_buttons), MP_ROM_PTR(&launcher_buttons_obj) },
+    { MP_ROM_QSTR(MP_QSTR_reset_buttons), MP_ROM_PTR(&launcher_reset_buttons_obj) },
     { MP_ROM_QSTR(MP_QSTR_headless), MP_ROM_PTR(&launcher_headless_obj) },
     { MP_ROM_QSTR(MP_QSTR_log), MP_ROM_PTR(&launcher_log_obj) },
 

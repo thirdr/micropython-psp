@@ -61,6 +61,7 @@ set(MICROPY_SOURCE_SHARED
 set(MICROPY_SOURCE_PORT
     ${MICROPY_PORT_DIR}/main.c
     ${MICROPY_PORT_DIR}/modlauncher.c
+    ${MICROPY_PORT_DIR}/modpsp.c
     ${MICROPY_PORT_DIR}/mphalport.c
     ${MICROPY_PORT_DIR}/paths.c
 )

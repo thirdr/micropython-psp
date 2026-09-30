@@ -131,6 +131,13 @@ jobs:
           tools/run-ppsspp.sh --files tests/modules build/psp/EBOOT.PBP 60
           grep -q '^modtest: PASS$' build/logs/latest/stdout.log
 
+      - name: Run psp module test
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh --files tests/psp build/psp/EBOOT.PBP 60
+          grep -q '^psptest: PASS$' build/logs/latest/stdout.log
+
       # The test suite lives in the micropython submodule; its own nested
       # submodules (lib/) aren't needed to run it.
       - name: Fetch MicroPython's test suite
