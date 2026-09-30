@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Run one script on the PSP port in PPSSPPHeadless, like the unix binary.
+
+    tools/psp-micropython [-X opt ...] script.py
+
+This is what MicroPython's tests/run-tests.py calls in place of the unix
+`micropython` binary (see tools/run-mp-tests.sh). It copies the EBOOT into a
+fresh folder with the script as main.py, links in the script's neighbours so
+its imports work, runs it headless and prints what the program printed.
+
+-X options (emit, heapsize, realtime) are accepted and ignored. The exit
+status is 0 when the program finished, 1 on a timeout or emulator failure
+(which run-tests reports as CRASH).
+
+Environment:
+    PSP_EBOOT         the EBOOT to run (default build/psp/EBOOT.PBP)
+    PPSSPP_HEADLESS   the PPSSPPHeadless binary
+    PSP_TEST_TIMEOUT  seconds per script (default 30)
+"""
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EBOOT = os.environ.get("PSP_EBOOT", os.path.join(REPO, "build/psp/EBOOT.PBP"))
+HEADLESS = os.environ.get(
+    "PPSSPP_HEADLESS", os.path.join(REPO, "../ppsspp/build-headless/PPSSPPHeadless")
+)
+TIMEOUT = int(os.environ.get("PSP_TEST_TIMEOUT", "30"))
+REFERENCE = os.path.join(REPO, "build/logs/.blank-reference.bmp")
+
+# Lines PPSSPPHeadless adds around the program's own output.
+NOISE = (b"Screenshot MSE: ", b"Actual output written to: ", b"Unable to read screenshot")
+
+
+def parse_args(argv):
+    script = None
+    i = 0
+    while i < len(argv):
+        if argv[i] == "-X":
+            i += 2
+            continue
+        if argv[i].startswith("-"):
+            sys.exit("psp-micropython: unsupported option " + argv[i])
+        script = argv[i]
+        i += 1
+    if script is None:
+        sys.exit("psp-micropython: no script given (there's no REPL)")
+    return os.path.abspath(script)
+
+
+def stage(script, app):
+    # The EBOOT has to be a real file: PPSSPP uses the folder it's in as umd0:/.
+    shutil.copy(EBOOT, os.path.join(app, "EBOOT.PBP"))
+    shutil.copy(script, os.path.join(app, "main.py"))
+    src = os.path.dirname(script)
+    for name in os.listdir(src):
+        if name.lower() in ("eboot.pbp", "main.py", "boot.py"):
+            continue
+        os.symlink(os.path.join(src, name), os.path.join(app, name))
+
+
+def main():
+    script = parse_args(sys.argv[1:])
+    if not os.path.exists(REFERENCE):
+        subprocess.check_call(
+            [sys.executable, os.path.join(REPO, "tools/ppsspp_screen.py"), "reference", REFERENCE]
+        )
+    work = tempfile.mkdtemp(prefix="psp-mp-")
+    try:
+        app = os.path.join(work, "app")
+        os.mkdir(app)
+        stage(script, app)
+        env = dict(os.environ)
+        env.pop("GITHUB_ACTIONS", None)
+        # The port takes a screenshot before exiting, and headless crashes
+        # without a reference to compare it with; the capture lands in work/.
+        cmd = [
+            HEADLESS,
+            "--graphics=software",
+            "--timeout=%d" % TIMEOUT,
+            "--screenshot=" + REFERENCE,
+            "--max-mse=-10",
+            os.path.join(app, "EBOOT.PBP"),
+        ]
+        proc = subprocess.run(
+            cmd, cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        )
+        lines = proc.stdout.splitlines(keepends=True)
+        timed_out = any(line.rstrip() == b"TIMEOUT" for line in lines)
+        out = b"".join(line for line in lines if not line.startswith(NOISE))
+        if timed_out:
+            out = out.replace(b"TIMEOUT\n", b"")
+        sys.stdout.buffer.write(out)
+        sys.stdout.flush()
+        return 1 if timed_out or proc.returncode not in (0,) else 0
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

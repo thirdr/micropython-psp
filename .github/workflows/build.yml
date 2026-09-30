@@ -131,8 +131,20 @@ jobs:
           tools/run-ppsspp.sh --files tests/modules build/psp/EBOOT.PBP 60
           grep -q '^modtest: PASS$' build/logs/latest/stdout.log
 
+      # The test suite lives in the micropython submodule; its own nested
+      # submodules (lib/) aren't needed to run it.
+      - name: Fetch MicroPython's test suite
+        run: git submodule update --init --depth 1 micropython
+
+      - name: Run MicroPython's test suite
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: tools/run-mp-tests.sh -j"$(nproc)"
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: headless-logs
-          path: build/logs/
+          path: |
+            build/logs/
+            build/mp-tests/

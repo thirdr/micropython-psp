@@ -54,6 +54,7 @@ set(MICROPY_SOURCE_SHARED
     ${MICROPY_DIR}/shared/readline/readline.c
     ${MICROPY_DIR}/shared/runtime/gchelper_generic.c
     ${MICROPY_DIR}/shared/runtime/pyexec.c
+    ${MICROPY_DIR}/shared/runtime/sys_stdio_mphal.c
     ${MICROPY_DIR}/shared/timeutils/timeutils.c
 )
 
@@ -61,6 +62,7 @@ set(MICROPY_SOURCE_PORT
     ${MICROPY_PORT_DIR}/main.c
     ${MICROPY_PORT_DIR}/modlauncher.c
     ${MICROPY_PORT_DIR}/mphalport.c
+    ${MICROPY_PORT_DIR}/paths.c
 )
 
 set(MICROPY_SOURCE_QSTR
@@ -112,6 +114,17 @@ target_link_libraries(${MICROPY_TARGET} PRIVATE
     psprtc
     m
 )
+
+# vfs_posix_file.c always defines sys.stdin/stdout/stderr as fd 0/1/2. Rename
+# them in that file only, so sys_stdio_mphal.c's versions (which go through
+# mp_hal_stdout_tx_strn, and so reach the screen) are the ones sys uses.
+set_source_files_properties(${MICROPY_DIR}/extmod/vfs_posix_file.c PROPERTIES
+    COMPILE_DEFINITIONS "mp_sys_stdin_obj=vfs_posix_unused_stdin_obj;mp_sys_stdout_obj=vfs_posix_unused_stdout_obj;mp_sys_stderr_obj=vfs_posix_unused_stderr_obj"
+)
+
+# paths.c wraps getcwd() (a drive's top reads "umd0:/", not "umd0:") and
+# libcglue's __path_absolute() (repeated slashes are collapsed).
+target_link_options(${MICROPY_TARGET} PRIVATE -Wl,--wrap=getcwd -Wl,--wrap=__path_absolute)
 
 include(${MICROPY_DIR}/py/mkrules.cmake)
 

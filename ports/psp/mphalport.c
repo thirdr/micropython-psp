@@ -9,6 +9,7 @@
 #include <pspiofilemgr.h>
 
 #include "py/mphal.h"
+#include "py/stream.h"
 #include "psp_emu.h"
 
 static int headless = 0;
@@ -47,8 +48,25 @@ int mp_hal_stdin_rx_chr(void) {
     }
 }
 
-// Seed for the random module, taken when it's first imported. The low word
-// of the system timer varies with how long the user took to get there.
+// For polling sys.stdin/stdout (select.poll). Output is always ready. There's
+// no non-blocking way to check stdin, so report it as never readable.
+uintptr_t mp_hal_stdio_poll(uintptr_t poll_flags) {
+    return poll_flags & MP_STREAM_POLL_WR;
+}
+
+// Seed for random, used at first import and by random.seed() with no
+// argument. The microsecond timer depends on how long the user took to get
+// there; the counter makes back-to-back calls differ. Mixed with murmur3's
+// finaliser so nearby times give unrelated seeds.
 uint32_t psp_random_seed(void) {
-    return sceKernelGetSystemTimeLow() ^ (uint32_t)(mp_hal_time_ns() / 1000);
+    static uint32_t calls;
+    uint64_t t = sceKernelGetSystemTimeWide();
+    uint32_t x = (uint32_t)t ^ (uint32_t)(t >> 32) ^ (++calls * 0x9e3779b9u);
+    x ^= (uint32_t)(mp_hal_time_ns() / 1000000000ULL);
+    x ^= x >> 16;
+    x *= 0x85ebca6bu;
+    x ^= x >> 13;
+    x *= 0xc2b2ae35u;
+    x ^= x >> 16;
+    return x;
 }

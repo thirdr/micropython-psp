@@ -25,11 +25,18 @@
 #define MICROPY_GCREGS_SETJMP                   (1)
 #define MICROPY_ENABLE_GC                       (1)
 #define MICROPY_ENABLE_FINALISER                (1)
+// Keeps exception messages when the heap is locked or full, as ports/unix does.
+#define MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF  (1)
+#define MICROPY_EMERGENCY_EXCEPTION_BUF_SIZE    (256)
 #define MICROPY_STACK_CHECK                     (1)
 #define MICROPY_STACK_CHECK_MARGIN              (8 * 1024)
 
 // The Allegrex FPU is single precision only.
 #define MICROPY_FLOAT_IMPL                      (MICROPY_FLOAT_IMPL_FLOAT)
+// newlib's powf gives nan for pow(nan, 0) and pow(1, nan), and tgammaf(-inf)
+// gives inf; these make math follow CPython.
+#define MICROPY_PY_MATH_POW_FIX_NAN             (1)
+#define MICROPY_PY_MATH_GAMMA_FIX_NEGINF        (1)
 #define MICROPY_LONGINT_IMPL                    (MICROPY_LONGINT_IMPL_MPZ)
 
 // Error reporting and help.
@@ -58,10 +65,9 @@
 #define MICROPY_PY_OS                           (1)
 // deflate compression as well as decompression; size isn't tight here.
 #define MICROPY_PY_DEFLATE_COMPRESS             (1)
-// No sys.stdin/stdout/stderr. VfsPosix would provide them as fd 0/1/2, and
-// print() would then write to fd 1 only, skipping the screen and headless
-// output that mp_hal_stdout_tx_strn does.
-#define MICROPY_PY_SYS_STDFILES                 (0)
+// sys.stdin/stdout/stderr come from shared/runtime/sys_stdio_mphal.c, so they
+// go through mp_hal_stdout_tx_strn (screen and headless output as well as
+// fd 1). CMakeLists.txt renames VfsPosix's own fd-based versions out of the way.
 
 // Time: a 1970 epoch as in CPython, 64-bit timestamps.
 #define MICROPY_EPOCH_IS_1970                   (1)

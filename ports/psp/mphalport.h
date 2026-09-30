@@ -42,6 +42,12 @@ static inline void mp_hal_delay_ms(mp_uint_t ms) {
     sceKernelDelayThread(ms * 1000);
 }
 
+// How select.poll and asyncio wait: sleep the thread rather than spin (the
+// default does nothing). At most 10 ms at a time, so pending events are still
+// handled promptly; -1 means wait indefinitely.
+#define MICROPY_INTERNAL_WFE(TIMEOUT_MS) \
+    sceKernelDelayThread(((int)(TIMEOUT_MS) < 0 || (TIMEOUT_MS) > 10 ? 10 : (TIMEOUT_MS)) * 1000)
+
 static inline void mp_hal_set_interrupt_char(char c) {
     (void)c;
 }
