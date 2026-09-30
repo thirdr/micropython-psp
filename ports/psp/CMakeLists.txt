@@ -18,6 +18,10 @@ set(MICROPY_DIR ${PSP_REPO_DIR}/micropython)
 
 # Memory. The defaults are sized for a PSP-1000 (about 24 MB for homebrew).
 # PPSSPP may give more RAM than that, so it won't catch over-allocation.
+# The port's own release version (psp.VERSION, the release zip's name).
+# MicroPython's version is separate: sys.version.
+set(MICROPY_PSP_VERSION "0.1.0")
+
 set(MICROPY_PSP_GC_HEAP_KB 12288 CACHE STRING "GC heap size in KB")
 set(MICROPY_PSP_MAIN_STACK_KB 256 CACHE STRING "Main thread stack size in KB")
 
@@ -95,6 +99,7 @@ target_compile_definitions(${MICROPY_TARGET} PRIVATE
     MICROPY_PSP_GC_HEAP_KB=${MICROPY_PSP_GC_HEAP_KB}
     MICROPY_PSP_MAIN_STACK_KB=${MICROPY_PSP_MAIN_STACK_KB}
     MICROPY_PSP_TEST_BUILD=${PSP_TEST_BUILD_VALUE}
+    MICROPY_PSP_VERSION="${MICROPY_PSP_VERSION}"
     # extmod/modvfs.c includes the FAT headers even though FAT is off.
     FFCONF_H=\"${MICROPY_OOFATFS_DIR}/ffconf.h\"
 )
@@ -129,7 +134,12 @@ target_link_options(${MICROPY_TARGET} PRIVATE -Wl,--wrap=getcwd -Wl,--wrap=__pat
 
 include(${MICROPY_DIR}/py/mkrules.cmake)
 
+# ICON0.PNG is the XMB icon, drawn by tools/make_icon.py.
 create_pbp_file(
     TARGET ${MICROPY_TARGET}
     TITLE "MicroPython"
+    ICON_PATH ${MICROPY_PORT_DIR}/assets/ICON0.PNG
 )
+
+# For tools/make-release.sh.
+file(WRITE ${CMAKE_BINARY_DIR}/VERSION "${MICROPY_PSP_VERSION}\n")

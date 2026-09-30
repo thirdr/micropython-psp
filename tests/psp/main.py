@@ -112,6 +112,12 @@ def t_freq():
     return ok, "start={}".format(start)
 
 
+def t_version():
+    v = psp.VERSION
+    parts = v.split(".")
+    return len(parts) == 3 and all(p.isdigit() for p in parts), repr(v)
+
+
 def t_emulator():
     return psp.emulator() is True, ""
 
@@ -125,6 +131,7 @@ for name, fn in (
     ("vsync", t_vsync),
     ("battery", t_battery),
     ("freq", t_freq),
+    ("version", t_version),
     ("emulator", t_emulator),
 ):
     _check(name, fn)

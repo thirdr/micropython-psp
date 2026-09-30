@@ -49,6 +49,7 @@ jobs:
             build/hello/EBOOT.PBP
             build/hello/hello
             build/psp/EBOOT.PBP
+            build/psp/VERSION
             build/psp/micropython
             build/psp-test/EBOOT.PBP
             build/psp-test/micropython
@@ -138,6 +139,15 @@ jobs:
           tools/run-ppsspp.sh --files tests/psp build/psp/EBOOT.PBP 60
           grep -q '^psptest: PASS$' build/logs/latest/stdout.log
 
+      - name: Run the examples
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          mkdir -p build/examples-test
+          cp tests/examples/main.py examples/*.py build/examples-test/
+          tools/run-ppsspp.sh --files build/examples-test build/psp/EBOOT.PBP 90
+          grep -q '^examplestest: PASS$' build/logs/latest/stdout.log
+
       # The test suite lives in the micropython submodule; its own nested
       # submodules (lib/) aren't needed to run it.
       - name: Fetch MicroPython's test suite
@@ -148,6 +158,16 @@ jobs:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
         run: tools/run-mp-tests.sh -j"$(nproc)"
 
+      # After every test has passed, so a release zip is only made from a
+      # build that works.
+      - name: Make the release zip
+        run: tools/make-release.sh build/psp/EBOOT.PBP
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: build/release/*.zip
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -155,3 +175,23 @@ jobs:
           path: |
             build/logs/
             build/mp-tests/
+
+  # Pushing a tag such as v0.1.0 publishes the tested zip as a GitHub release.
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/*.zip \
+            --repo "$GITHUB_REPOSITORY" --title "MicroPython for PSP $GITHUB_REF_NAME" --generate-notes

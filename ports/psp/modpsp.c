@@ -12,6 +12,7 @@
 #include <psppower.h>
 
 #include "py/mperrno.h"
+#include "py/objstr.h"
 #include "py/runtime.h"
 #include "psp_emu.h"
 
@@ -239,8 +240,13 @@ static mp_obj_t psp_emulator(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(psp_emulator_obj, psp_emulator);
 
+// Set by CMakeLists.txt (MICROPY_PSP_VERSION).
+static MP_DEFINE_STR_OBJ(psp_version_obj, MICROPY_PSP_VERSION);
+
 static const mp_rom_map_elem_t psp_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_psp) },
+    // This port's release version; sys.version is MicroPython's.
+    { MP_ROM_QSTR(MP_QSTR_VERSION), MP_ROM_PTR(&psp_version_obj) },
     { MP_ROM_QSTR(MP_QSTR_held), MP_ROM_PTR(&psp_held_obj) },
     { MP_ROM_QSTR(MP_QSTR_pressed), MP_ROM_PTR(&psp_pressed_obj) },
     { MP_ROM_QSTR(MP_QSTR_released), MP_ROM_PTR(&psp_released_obj) },
