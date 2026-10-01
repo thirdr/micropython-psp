@@ -20,7 +20,7 @@ MicroPython shows them in a list:
 
     Up/Down   choose a script
     X         run it
-    Triangle  show its source
+    Triangle  show its source (Up/Down scroll, Left/Right turn a page)
     O         back to the list
     HOME      quit
 

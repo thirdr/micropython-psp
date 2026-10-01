@@ -1,7 +1,8 @@
 # The script launcher: runs when the EBOOT's folder has no main.py.
 #
 # Lists the .py files in the folder (except boot.py and main.py). Up and down
-# choose, X runs, triangle shows the start of the file, HOME exits. After a
+# choose, X runs, triangle shows the file (up and down scroll, left and right
+# turn a page), HOME exits. After a
 # script ends, or raises an error, its output stays on screen until O.
 #
 # Under PPSSPPHeadless, which has no buttons, it draws the list once, logs
@@ -32,6 +33,10 @@ PREVIEW_TEXT = 0x999999
 
 REPEAT_DELAY_MS = 400
 REPEAT_RATE_MS = 80
+
+FILE_TOP = 24
+FILE_ROWS = 28
+FILE_MAX_BYTES = 64 * 1024
 
 VERSION = sys.version.split("; ")[1].split(" on ")[0]
 
@@ -103,17 +108,18 @@ def wait_press(mask):
 
 
 class Input:
-    # Newly pressed buttons, with auto-repeat while up or down is held.
-    def __init__(self):
+    # Newly pressed buttons, with auto-repeat while a direction is held.
+    def __init__(self, repeat=ui.UP | ui.DOWN):
         self.held = 0
         self.repeat_at = 0
+        self.repeat = repeat
 
     def next(self):
         while True:
             buttons = ui.buttons()
             pressed = buttons & ~self.held
             now = time.ticks_ms()
-            arrows = buttons & (ui.UP | ui.DOWN)
+            arrows = buttons & self.repeat
             if pressed & arrows:
                 self.repeat_at = time.ticks_add(now, REPEAT_DELAY_MS)
             elif arrows and time.ticks_diff(now, self.repeat_at) >= 0:
@@ -124,18 +130,49 @@ class Input:
                 return pressed
 
 
-def show_file(name):
-    ui.fill(0, 0, SCREEN_WIDTH, 272, 0x000000)
-    header(display_name(name)[:30])
+def read_lines(name):
     try:
         with open(name) as f:
-            lines = f.read(4096).split("\n")
+            text = f.read(FILE_MAX_BYTES)
+            more = f.read(1)
     except Exception as e:
-        lines = ["Can't read the file: " + repr(e)]
-    for i, line in enumerate(lines[:28]):
-        ui.text(8, 24 + i * 8, line.replace("\t", "    ")[: COLUMNS - 2], PREVIEW_TEXT)
-    footer("O back")
-    wait_press(ui.CIRCLE)
+        return ["Can't read the file: " + repr(e)]
+    lines = text.replace("\t", "    ").split("\n")
+    if more:
+        lines.append("(only the first {} KB shown)".format(FILE_MAX_BYTES // 1024))
+    return lines
+
+
+def show_file(name):
+    # Returns the top line shown last, for the tests.
+    lines = read_lines(name)
+    last_top = max(len(lines) - FILE_ROWS, 0)
+    top = 0
+    keys = Input(ui.UP | ui.DOWN | ui.LEFT | ui.RIGHT)
+    wait_release()
+    ui.fill(0, 0, SCREEN_WIDTH, 272, 0x000000)
+    while True:
+        header(display_name(name)[:30])
+        ui.fill(0, 16, SCREEN_WIDTH, FOOTER_Y - 16, 0x000000)
+        for i, line in enumerate(lines[top : top + FILE_ROWS]):
+            ui.text(8, FILE_TOP + i * 8, line[: COLUMNS - 2], PREVIEW_TEXT)
+        shown = "{}-{} of {}".format(top + 1, min(top + FILE_ROWS, len(lines)), len(lines))
+        keys_help = "^v scroll  <> page  O back"
+        footer(keys_help + " " * (COLUMNS - 2 - len(keys_help) - len(shown)) + shown)
+        pressed = keys.next()
+        if pressed & ui.CIRCLE:
+            break
+        if pressed & ui.UP:
+            top -= 1
+        elif pressed & ui.DOWN:
+            top += 1
+        elif pressed & ui.LEFT:
+            top -= FILE_ROWS
+        elif pressed & ui.RIGHT:
+            top += FILE_ROWS
+        top = min(max(top, 0), last_top)
+    wait_release()
+    return top
 
 
 def restore_cwd(cwd):

@@ -96,5 +96,19 @@ _result("pspdisplay error shows on screen", any(p == 0xFFFFFF for p in row))
 launcher.show_file(scripts[names.index("hello.py")])
 _result("shows a file and waits for O", fake.waits >= 3, "waits={}".format(fake.waits))
 
+with open("long.py", "w") as f:
+    f.write("\n".join("# line {}".format(i) for i in range(100)))
+U, D, L, R, O = _launcher.UP, _launcher.DOWN, _launcher.LEFT, _launcher.RIGHT, _launcher.CIRCLE
+fake.sequence = [0, D, 0, D, 0, R, 0, L, 0, D, 0, O, 0]
+top = launcher.show_file("long.py")
+_result("file view scrolls and turns pages", top == 3, "top={}".format(top))
+fake.sequence = [0, U, 0, L, 0, O, 0]
+top = launcher.show_file("long.py")
+_result("file view stops at the top", top == 0, "top={}".format(top))
+fake.sequence = [0] + [R, 0] * 6 + [D, 0, O, 0]
+top = launcher.show_file("long.py")
+_result("file view stops at the end", top == 100 - launcher.FILE_ROWS, "top={}".format(top))
+os.remove("long.py")
+
 launcher.draw_list(scripts, 1, 0)
 _launcher.log("launchertest: {}".format("PASS" if _failures == 0 else "FAIL ({} failed)".format(_failures)))
