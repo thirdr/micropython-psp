@@ -8,7 +8,11 @@
 #   PSP/GAME/MicroPython/EBOOT.PBP
 #   PSP/GAME/MicroPython/*.py              (from examples/)
 #   PSP/GAME/MicroPython/README.txt        (from ports/psp/release/)
+#   PSP/GAME/MicroPython/LICENSE.txt       (this port, MIT)
 #   PSP/GAME/MicroPython/LICENSE-MicroPython.txt
+#   PSP/GAME/MicroPython/licenses/         (pspsdk, newlib and
+#       pthread-embedded, which are linked into every PSP EBOOT; from
+#       ports/psp/release/, copied from pspdev's share/licenses)
 # The version comes from the build (build/psp/VERSION, set in
 # ports/psp/CMakeLists.txt).
 set -euo pipefail
@@ -35,7 +39,9 @@ mkdir -p "$game"
 cp "$eboot" "$game/EBOOT.PBP"
 cp "$REPO"/examples/*.py "$game/"
 cp "$REPO/ports/psp/release/README.txt" "$game/README.txt"
+cp "$REPO/LICENSE" "$game/LICENSE.txt"
 cp "$REPO/micropython/LICENSE" "$game/LICENSE-MicroPython.txt"
+cp -R "$REPO/ports/psp/release/licenses" "$game/"
 
 # Python's zipfile, so this needs no zip tool (and adds no macOS metadata).
 (cd "$stage" && python3 -m zipfile -c "$stage.zip" PSP)

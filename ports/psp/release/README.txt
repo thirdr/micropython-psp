@@ -1,5 +1,5 @@
-MicroPython for the Sony PSP
-============================
+MicroPython for the PlayStation Portable (PSP)
+==============================================
 
 MicroPython (a small Python 3) that runs on a PSP with custom firmware,
 such as ARK-4, and in the PPSSPP emulator.
@@ -59,6 +59,12 @@ os.rename() can only rename within a folder: the PSP can't move a file
 to another folder in one step, so os.rename() raises OSError (EXDEV, 18)
 if you try. Copy the file and delete the old one instead.
 
-Licence
+License
 -------
-MicroPython is MIT-licensed; see LICENSE-MicroPython.txt.
+MicroPython for the PlayStation Portable (PSP) is MIT-licensed; see
+LICENSE.txt. MicroPython itself is MIT-licensed too; see
+LICENSE-MicroPython.txt. The PSP toolchain libraries built into
+EBOOT.PBP (pspsdk, newlib and pthread-embedded) have their own licenses,
+in the licenses folder. pthread-embedded is LGPL; its source is at
+https://github.com/pspdev/pthread-embedded, and this program's source, to
+rebuild it, is at https://github.com/thirdr/micropython-psp.
