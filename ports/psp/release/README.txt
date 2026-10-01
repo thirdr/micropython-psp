@@ -29,8 +29,8 @@ list (after boot.py, if there is one). Modules in a lib/ folder can be
 imported.
 
 The scripts that come with this zip are examples: hello.py, buttons.py,
-stick.py, dice.py, clock.py, notes.py and tasks.py, and for graphics,
-bounce.py, sketch.py and clockface.py. Read them, change them, or delete
+stick.py, dice.py, clock.py, notes.py and tasks.py, for graphics,
+bounce.py, sketch.py and clockface.py, and for sound, keys.py. Read them, change them, or delete
 them.
 
 The psp module
@@ -68,6 +68,21 @@ pspdisplay's screen, a 480x272 picovector image:
 Fonts load from files, with a folder in the name (fonts/sins.ppf, next to
 the examples). While a script draws, print() doesn't reach the screen; when
 it ends, the last frame stays until you press O.
+
+Sound
+-----
+    import audio
+    s = audio.play("music.mp3", loop=True)   # or a .wav file
+    s.volume = 0.5        # also s.pause(), s.resume(), s.stop(), s.playing
+    audio.volume(0.8)     # master volume
+    audio.stop()          # stop everything
+    out = audio.Stream(rate=22050, channels=1, bits=16)
+    out.write(samples)    # samples made by the script
+
+WAV files can be 8 or 16-bit, mono or stereo, at any sample rate. MP3s
+play on the PSP's hardware decoder. Up to 8 sounds play at once, at most
+2 of them MP3s; one more stops the oldest. Sounds stop when the script
+ends.
 
 Most standard modules are there too: os, time, json, re, random, math,
 struct, collections, asyncio and more.

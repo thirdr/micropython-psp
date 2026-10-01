@@ -7,10 +7,10 @@ custom firmware and in the [PPSSPP](https://www.ppsspp.org) emulator.
 ![The script launcher on a PSP screen: a list of seven .py files](docs/launcher.png)
 
 Scripts can read the buttons, the analog stick, the battery, the clock and the
-memory stick, print text, and draw on the screen with Pimoroni's
+memory stick, print text, draw on the screen with Pimoroni's
 [PicoVector](https://github.com/pimoroni/picovector-micropython) at 60 frames
-a second. There's no sound or networking yet. If you'd like to see more, star
-the repo or open an issue: that decides how much further this goes.
+a second, and play sound. There's no networking yet. If you'd like to see
+more, star the repo or open an issue: that decides how much further this goes.
 
 ## Installing
 
@@ -45,7 +45,8 @@ list (after `boot.py`, if there is one). Modules in a `lib/` folder can be
 imported.
 
 The zip comes with examples: `hello`, `buttons`, `stick`, `dice`, `clock`,
-`notes` and `tasks`, plus `bounce`, `sketch` and `clockface` for graphics.
+`notes` and `tasks`, plus `bounce`, `sketch` and `clockface` for graphics
+and `keys` for sound.
 They're in [`examples/`](examples) too.
 
 ## The `psp` module
@@ -123,6 +124,27 @@ vector (`.af`) and pixel (`.ppf`) fonts, and tweens. On the PSP:
   slowly across the whole screen flickers. That's the PSP's LCD, not the
   drawing.
 
+## Sound: the `audio` module
+
+```python
+import audio
+
+music = audio.play("music.mp3", loop=True)
+beep = audio.play("beep.wav", volume=0.5)
+music.volume = 0.3       # also pause(), resume(), stop(), and .playing
+audio.volume(0.8)        # master volume
+audio.stop()             # stop everything
+```
+
+- `audio.play()` takes WAV files (8 or 16-bit, mono or stereo, any sample
+  rate) and MP3s, which the PSP's hardware decoder streams from the file.
+- Up to 8 sounds play at once, and at most 2 of them can be MP3s. Starting
+  one more stops the oldest.
+- `audio.Stream(rate=22050, channels=1, bits=16)` plays samples made by the
+  script: `write(buf)` queues them and waits while the queue is full,
+  `space()` says how many bytes fit without waiting, `close()` ends it.
+- When a script ends, the launcher stops its sounds.
+
 ## What works and what doesn't
 
 **Works:**
@@ -135,7 +157,6 @@ vector (`.af`) and pixel (`.ppf`) fonts, and tweens. On the PSP:
 - About 12 MB of memory for Python, sized to fit a PSP-1000.
 
 **Doesn't work yet:**
-- **No sound.**
 - **Text from `print()` doesn't scroll.** It goes to the PSP's debug screen,
   and when the screen fills up it wraps back to the top.
 - **No interactive prompt (REPL).** You write scripts on a computer and run

@@ -64,6 +64,7 @@ set(MICROPY_SOURCE_SHARED
 
 set(MICROPY_SOURCE_PORT
     ${MICROPY_PORT_DIR}/main.c
+    ${MICROPY_PORT_DIR}/modaudio.c
     ${MICROPY_PORT_DIR}/modlauncher.c
     ${MICROPY_PORT_DIR}/modpsp.c
     ${MICROPY_PORT_DIR}/mphalport.c
@@ -116,13 +117,16 @@ target_compile_options(${MICROPY_TARGET} PRIVATE
 include(${PSP_REPO_DIR}/modules/picovector_psp/picovector_psp.cmake)
 
 target_link_libraries(${MICROPY_TARGET} PRIVATE
+    pspaudio
     pspctrl
     pspdebug
     pspdisplay
     pspdmac
     pspge
+    pspmp3
     psppower
     psprtc
+    psputility
     m
 )
 

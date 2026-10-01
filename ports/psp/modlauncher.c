@@ -134,6 +134,14 @@ static mp_obj_t launcher_screen_pixel(mp_obj_t x_in, mp_obj_t y_in) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(launcher_screen_pixel_obj, launcher_screen_pixel);
 
+// stop_audio(): stops every sound a script left playing.
+void psp_audio_reset(void);
+static mp_obj_t launcher_stop_audio(void) {
+    psp_audio_reset();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(launcher_stop_audio_obj, launcher_stop_audio);
+
 // headless(): True under PPSSPPHeadless, which has no buttons.
 static mp_obj_t launcher_headless(void) {
     return mp_obj_new_bool(psp_emu_is_headless());
@@ -164,6 +172,7 @@ static const mp_rom_map_elem_t launcher_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_reset_buttons), MP_ROM_PTR(&launcher_reset_buttons_obj) },
     { MP_ROM_QSTR(MP_QSTR_release_display), MP_ROM_PTR(&launcher_release_display_obj) },
     { MP_ROM_QSTR(MP_QSTR_screen_pixel), MP_ROM_PTR(&launcher_screen_pixel_obj) },
+    { MP_ROM_QSTR(MP_QSTR_stop_audio), MP_ROM_PTR(&launcher_stop_audio_obj) },
     { MP_ROM_QSTR(MP_QSTR_headless), MP_ROM_PTR(&launcher_headless_obj) },
     { MP_ROM_QSTR(MP_QSTR_log), MP_ROM_PTR(&launcher_log_obj) },
 

@@ -163,6 +163,7 @@ def run_script(name):
         sys.print_exception(e)
     finally:
         ui.release_display()
+        ui.stop_audio()
         restore_cwd(cwd)
     del scope
     gc.collect()

@@ -143,6 +143,13 @@ jobs:
           tools/run-ppsspp.sh --files tests/psp build/psp/EBOOT.PBP 60
           grep -q '^psptest: PASS$' build/logs/latest/stdout.log
 
+      - name: Run audio test
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh --files tests/audio build/psp/EBOOT.PBP 90
+          grep -q '^audiotest: PASS$' build/logs/latest/stdout.log
+
       - name: Run picovector test
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
