@@ -25,6 +25,9 @@
 #define MICROPY_GCREGS_SETJMP                   (1)
 #define MICROPY_ENABLE_GC                       (1)
 #define MICROPY_ENABLE_FINALISER                (1)
+// m_tracked_calloc()/m_tracked_free(): heap blocks only C code points to
+// (picovector's PNG and JPEG decoders), kept alive until freed, as on rp2.
+#define MICROPY_TRACKED_ALLOC                   (1)
 // Keeps exception messages when the heap is locked or full, as ports/unix does.
 #define MICROPY_ENABLE_EMERGENCY_EXCEPTION_BUF  (1)
 #define MICROPY_EMERGENCY_EXCEPTION_BUF_SIZE    (256)

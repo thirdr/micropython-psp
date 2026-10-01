@@ -9,7 +9,7 @@
 #   psp-cmake -S ports/psp -B build/psp-test -DCMAKE_BUILD_TYPE=Release -DMICROPY_PSP_TEST_BUILD=ON
 cmake_minimum_required(VERSION 3.16)
 
-project(micropython C ASM)
+project(micropython C CXX ASM)
 
 set(MICROPY_TARGET micropython)
 set(MICROPY_PORT_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -104,17 +104,22 @@ target_compile_definitions(${MICROPY_TARGET} PRIVATE
     FFCONF_H=\"${MICROPY_OOFATFS_DIR}/ffconf.h\"
 )
 
+# The single-precision flags are for our C only: picovector's C++ is
+# written for doubles where it uses them.
 target_compile_options(${MICROPY_TARGET} PRIVATE
-    $<$<COMPILE_LANGUAGE:C>:-std=gnu99>
+    $<$<COMPILE_LANGUAGE:C>:-std=gnu99 -fsingle-precision-constant -Wdouble-promotion>
     -Wall
-    -fsingle-precision-constant
-    -Wdouble-promotion
 )
+
+# picovector: PicoVector's shapes, images and fonts, and pspdisplay, its
+# screen.
+include(${PSP_REPO_DIR}/modules/picovector_psp/picovector_psp.cmake)
 
 target_link_libraries(${MICROPY_TARGET} PRIVATE
     pspctrl
     pspdebug
     pspdisplay
+    pspdmac
     pspge
     psppower
     psprtc

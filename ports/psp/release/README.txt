@@ -29,8 +29,9 @@ list (after boot.py, if there is one). Modules in a lib/ folder can be
 imported.
 
 The scripts that come with this zip are examples: hello.py, buttons.py,
-stick.py, dice.py, clock.py, notes.py and tasks.py. Read them, change them,
-or delete them.
+stick.py, dice.py, clock.py, notes.py and tasks.py, and for graphics,
+bounce.py, sketch.py and clockface.py. Read them, change them, or delete
+them.
 
 The psp module
 --------------
@@ -51,9 +52,25 @@ The psp module
     psp.emulator()        True in PPSSPP
     psp.VERSION           this release's version
 
+Graphics
+--------
+Pimoroni's PicoVector (the Badgeware graphics library) draws into
+pspdisplay's screen, a 480x272 picovector image:
+
+    from picovector import color, font, vec2
+    from pspdisplay import screen, update
+    screen.pen = color.rgb(255, 0, 0)
+    screen.circle(vec2(240, 136), 40)
+    screen.font = font.load("fonts/sins.ppf")
+    screen.text("Hello", vec2(8, 8))
+    update()     # shows it at the next screen refresh (60 Hz)
+
+Fonts load from files, with a folder in the name (fonts/sins.ppf, next to
+the examples). While a script draws, print() doesn't reach the screen; when
+it ends, the last frame stays until you press O.
+
 Most standard modules are there too: os, time, json, re, random, math,
-struct, collections, asyncio and more. Output is text on screen; there's
-no graphics module yet.
+struct, collections, asyncio and more.
 
 os.rename() can only rename within a folder: the PSP can't move a file
 to another folder in one step, so os.rename() raises OSError (EXDEV, 18)
@@ -63,8 +80,11 @@ License
 -------
 MicroPython for the PlayStation Portable (PSP) is MIT-licensed; see
 LICENSE.txt. MicroPython itself is MIT-licensed too; see
-LICENSE-MicroPython.txt. The PSP toolchain libraries built into
-EBOOT.PBP (pspsdk, newlib and pthread-embedded) have their own licenses,
-in the licenses folder. pthread-embedded is LGPL; its source is at
+LICENSE-MicroPython.txt. Pimoroni's PicoVector, with PNGdec and JPEGDEC
+(Apache 2.0) and the QR Code generator library (MIT), and the PSP
+toolchain libraries (pspsdk, newlib and pthread-embedded), also built into
+EBOOT.PBP, have their own licenses, in the licenses folder. The examples'
+font, fonts/sins.ppf, is from Pimoroni's tufty2350 (MIT,
+licenses/tufty2350-fonts). pthread-embedded is LGPL; its source is at
 https://github.com/pspdev/pthread-embedded, and this program's source, to
 rebuild it, is at https://github.com/thirdr/micropython-psp.

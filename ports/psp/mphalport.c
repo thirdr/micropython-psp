@@ -1,7 +1,8 @@
 // Console I/O for the PSP port.
 //
 // stdout goes to the PSP's stdout (fd 1), which PSPLINK and the PPSSPP log
-// both capture, and to the on-screen debug console. Under PPSSPPHeadless it
+// both capture, and to the on-screen debug console unless pspdisplay has
+// the screen. Under PPSSPPHeadless it
 // also goes to the emulator's own stdout, which doesn't echo fd 1.
 #include <string.h>
 
@@ -10,6 +11,7 @@
 
 #include "py/mphal.h"
 #include "py/stream.h"
+#include "psp_display.h"
 #include "psp_emu.h"
 
 static int headless = 0;
@@ -20,7 +22,10 @@ void mp_hal_init(void) {
 
 mp_uint_t mp_hal_stdout_tx_strn(const char *str, size_t len) {
     sceIoWrite(1, str, len);
-    pspDebugScreenPrintData(str, len);
+    // While a script draws with pspdisplay, the screen is its own.
+    if (!psp_display_active()) {
+        pspDebugScreenPrintData(str, len);
+    }
     if (headless) {
         psp_emu_send_output(str, len);
     }

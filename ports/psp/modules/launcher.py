@@ -158,8 +158,11 @@ def run_script(name):
     except SystemExit:
         pass
     except BaseException as e:
+        # Back from pspdisplay first, so the error shows on screen.
+        ui.release_display()
         sys.print_exception(e)
     finally:
+        ui.release_display()
         restore_cwd(cwd)
     del scope
     gc.collect()

@@ -21,8 +21,9 @@ EXPECTED_FAILURES=(
     # The unix binary's command-line options; the PSP has no command line.
     '^cmdline/'
     # PPSSPP lists lowercase 8.3 names in upper case ("test2" lists as
-    # "TEST2"). A real PSP-1000 lists files copied from a Mac in lower case
-    # (checked 2026-09-30); files created on the PSP itself are unchecked.
+    # "TEST2"). A real PSP-1000 keeps lower case, both for files copied from
+    # a Mac (checked 2026-09-30) and for files it creates itself (notes.py's
+    # notes.txt, checked 2026-10-01), so this is emulator-only.
     '^extmod/vfs_posix\.py$'
     '^extmod/vfs_posix_ilistdir_filter\.py$'
     # The PSP keeps the working directory as a string, so getcwd() still

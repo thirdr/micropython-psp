@@ -26,6 +26,10 @@ jobs:
           # own submodules (see ports/psp/CMakeLists.txt).
           submodules: true
 
+      # picovector-micropython's core library is its own submodule.
+      - name: Fetch picovector's core library
+        run: git -C picovector-micropython submodule update --init --depth 1 picovector
+
       - name: Build hello-world
         run: |
           psp-cmake -S tools/hello -B build/hello -DCMAKE_BUILD_TYPE=Release
@@ -139,12 +143,23 @@ jobs:
           tools/run-ppsspp.sh --files tests/psp build/psp/EBOOT.PBP 60
           grep -q '^psptest: PASS$' build/logs/latest/stdout.log
 
+      - name: Run picovector test
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          mkdir -p build/picovector-test
+          cp tests/picovector/main.py build/picovector-test/
+          cp -R examples/fonts build/picovector-test/
+          tools/run-ppsspp.sh --files build/picovector-test build/psp/EBOOT.PBP 60
+          grep -q '^pvtest: PASS$' build/logs/latest/stdout.log
+
       - name: Run the examples
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
         run: |
           mkdir -p build/examples-test
           cp tests/examples/main.py examples/*.py build/examples-test/
+          cp -R examples/fonts build/examples-test/
           tools/run-ppsspp.sh --files build/examples-test build/psp/EBOOT.PBP 90
           grep -q '^examplestest: PASS$' build/logs/latest/stdout.log
 

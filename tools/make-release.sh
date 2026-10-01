@@ -7,12 +7,15 @@
 # Writes build/release/micropython-psp-<version>.zip, containing
 #   PSP/GAME/MicroPython/EBOOT.PBP
 #   PSP/GAME/MicroPython/*.py              (from examples/)
+#   PSP/GAME/MicroPython/fonts/            (from examples/fonts/)
 #   PSP/GAME/MicroPython/README.txt        (from ports/psp/release/)
 #   PSP/GAME/MicroPython/LICENSE.txt       (this port, MIT)
 #   PSP/GAME/MicroPython/LICENSE-MicroPython.txt
-#   PSP/GAME/MicroPython/licenses/         (pspsdk, newlib and
-#       pthread-embedded, which are linked into every PSP EBOOT; from
-#       ports/psp/release/, copied from pspdev's share/licenses)
+#   PSP/GAME/MicroPython/licenses/         (PicoVector's decoders and QR code
+#       library, the examples' font, and pspsdk, newlib and
+#       pthread-embedded, which are linked into every PSP EBOOT. From
+#       ports/psp/release/: copies of the libraries' licenses and of
+#       pspdev's share/licenses)
 # The version comes from the build (build/psp/VERSION, set in
 # ports/psp/CMakeLists.txt).
 set -euo pipefail
@@ -38,6 +41,7 @@ rm -rf "$stage" "$stage.zip"
 mkdir -p "$game"
 cp "$eboot" "$game/EBOOT.PBP"
 cp "$REPO"/examples/*.py "$game/"
+cp -R "$REPO/examples/fonts" "$game/"
 cp "$REPO/ports/psp/release/README.txt" "$game/README.txt"
 cp "$REPO/LICENSE" "$game/LICENSE.txt"
 cp "$REPO/micropython/LICENSE" "$game/LICENSE-MicroPython.txt"

@@ -7,11 +7,13 @@
 #include <string.h>
 
 #include <pspctrl.h>
+#include <pspdisplay.h>
 #include <pspdebug.h>
 #include <pspge.h>
 #include <pspiofilemgr.h>
 
 #include "py/runtime.h"
+#include "psp_display.h"
 #include "psp_emu.h"
 
 #define SCREEN_WIDTH  480
@@ -106,6 +108,32 @@ static mp_obj_t launcher_reset_buttons(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(launcher_reset_buttons_obj, launcher_reset_buttons);
 
+// release_display(): take the screen back from pspdisplay, if a script
+// used it, keeping its last frame showing, so the console and launcher can
+// draw again.
+static mp_obj_t launcher_release_display(void) {
+    psp_display_release();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(launcher_release_display_obj, launcher_release_display);
+
+// screen_pixel(x, y): the pixel showing at (x, y) as 0xRRGGBB, read from
+// whichever framebuffer the display is scanning out. For tests: it checks
+// what's really on screen, e.g. after pspdisplay hands the screen back.
+static mp_obj_t launcher_screen_pixel(mp_obj_t x_in, mp_obj_t y_in) {
+    mp_int_t x = mp_obj_get_int(x_in);
+    mp_int_t y = mp_obj_get_int(y_in);
+    if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) {
+        mp_raise_ValueError(MP_ERROR_TEXT("off screen"));
+    }
+    void *top;
+    int width, format;
+    sceDisplayGetFrameBuf(&top, &width, &format, PSP_DISPLAY_SETBUF_IMMEDIATE);
+    u32 p = ((u32 *)(0x40000000 | (u32)top))[y * width + x];
+    return mp_obj_new_int(((p & 0xff) << 16) | (p & 0xff00) | ((p >> 16) & 0xff));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(launcher_screen_pixel_obj, launcher_screen_pixel);
+
 // headless(): True under PPSSPPHeadless, which has no buttons.
 static mp_obj_t launcher_headless(void) {
     return mp_obj_new_bool(psp_emu_is_headless());
@@ -134,6 +162,8 @@ static const mp_rom_map_elem_t launcher_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_console), MP_ROM_PTR(&launcher_console_obj) },
     { MP_ROM_QSTR(MP_QSTR_buttons), MP_ROM_PTR(&launcher_buttons_obj) },
     { MP_ROM_QSTR(MP_QSTR_reset_buttons), MP_ROM_PTR(&launcher_reset_buttons_obj) },
+    { MP_ROM_QSTR(MP_QSTR_release_display), MP_ROM_PTR(&launcher_release_display_obj) },
+    { MP_ROM_QSTR(MP_QSTR_screen_pixel), MP_ROM_PTR(&launcher_screen_pixel_obj) },
     { MP_ROM_QSTR(MP_QSTR_headless), MP_ROM_PTR(&launcher_headless_obj) },
     { MP_ROM_QSTR(MP_QSTR_log), MP_ROM_PTR(&launcher_log_obj) },
 

@@ -7,9 +7,10 @@ custom firmware and in the [PPSSPP](https://www.ppsspp.org) emulator.
 ![The script launcher on a PSP screen: a list of seven .py files](docs/launcher.png)
 
 Scripts can read the buttons, the analog stick, the battery, the clock and the
-memory stick, and print text. There's no graphics, sound or networking yet. If
-you'd like to see more, star the repo or open an issue: that decides how much
-further this goes.
+memory stick, print text, and draw on the screen with Pimoroni's
+[PicoVector](https://github.com/pimoroni/picovector-micropython) at 60 frames
+a second. There's no sound or networking yet. If you'd like to see more, star
+the repo or open an issue: that decides how much further this goes.
 
 ## Installing
 
@@ -43,8 +44,9 @@ If the folder has a `main.py`, MicroPython runs that instead of showing the
 list (after `boot.py`, if there is one). Modules in a `lib/` folder can be
 imported.
 
-The zip comes with seven examples: `hello`, `buttons`, `stick`, `dice`,
-`clock`, `notes` and `tasks`. They're in [`examples/`](examples) too.
+The zip comes with examples: `hello`, `buttons`, `stick`, `dice`, `clock`,
+`notes` and `tasks`, plus `bounce`, `sketch` and `clockface` for graphics.
+They're in [`examples/`](examples) too.
 
 ## The `psp` module
 
@@ -76,6 +78,51 @@ while True:
 | `psp.emulator()` | `True` in PPSSPP |
 | `psp.VERSION` | the port's version |
 
+## Graphics: `picovector` and `pspdisplay`
+
+Scripts draw with Pimoroni's
+[PicoVector](https://github.com/pimoroni/picovector-micropython), the
+graphics library of Pimoroni's Badgeware badges, into `screen`, a 480×272
+picovector image that `pspdisplay` puts on the PSP screen:
+
+```python
+import psp
+from picovector import color, font, shape, vec2
+from pspdisplay import screen, update, WIDTH, HEIGHT   # 480, 272
+
+screen.font = font.load("fonts/sins.ppf")   # a font file next to the script
+x = 0
+while psp.START not in psp.pressed():
+    screen.pen = color.rgb(0, 0, 0)
+    screen.clear()
+    screen.pen = color.rgb(255, 0, 0)
+    screen.circle(vec2(x, HEIGHT // 2), 20)
+    screen.text("Hello", vec2(8, 8))
+    update()      # shows the frame at the next screen refresh
+    x = (x + 4) % WIDTH
+```
+
+`picovector` has shapes (circles, polygons, stars, arcs, lines and strokes),
+brushes and colours (RGB, HSV and OKLCH, with alpha), images (load PNG, JPEG
+and GIF files, blit and scale them, sprite sheets and filters), transforms,
+vector (`.af`) and pixel (`.ppf`) fonts, and tweens. On the PSP:
+
+- `update()` waits for the screen refresh, so a drawing loop runs at up to
+  60 frames a second without any other pacing. The drawing stays in place
+  between frames.
+- Antialiasing is off until you set `screen.antialias = image.X2` or `X4`.
+- Fonts load from files: `font.load("fonts/sins.ppf")` with a folder in the
+  name opens that file, relative to the script's folder. A name on its own
+  (`font.load("sins")`, or `font.sins`) looks in folders such as
+  `/rom/fonts`, which the PSP doesn't have. The examples come with
+  `fonts/sins.ppf`, one of the Badgeware pixel fonts.
+- While a script draws, `print()` doesn't reach the screen. When the script
+  ends, the launcher takes the screen back with the last frame still
+  showing, and the next script's `screen` starts black.
+- On a PSP-1000, a fully saturated colour (such as a pure rainbow) shifting
+  slowly across the whole screen flickers. That's the PSP's LCD, not the
+  drawing.
+
 ## What works and what doesn't
 
 **Works:**
@@ -88,8 +135,9 @@ while True:
 - About 12 MB of memory for Python, sized to fit a PSP-1000.
 
 **Doesn't work yet:**
-- **No graphics or sound.** Output is text on the PSP's debug screen. When the
-  screen fills up, text wraps back to the top instead of scrolling.
+- **No sound.**
+- **Text from `print()` doesn't scroll.** It goes to the PSP's debug screen,
+  and when the screen fills up it wraps back to the top.
 - **No interactive prompt (REPL).** You write scripts on a computer and run
   them from the launcher.
 - **No Wi-Fi, USB or threads.**
@@ -137,7 +185,12 @@ builds the EBOOT, runs every test headless, and makes the release zip.
 MIT; see [`LICENSE`](LICENSE). MicroPython itself is MIT-licensed too; see
 [`micropython/LICENSE`](micropython/LICENSE).
 
-The EBOOT also contains the pspdev toolchain's pspsdk (BSD), newlib (mostly
-BSD-style) and pthread-embedded (LGPL 2.1) libraries. Their licenses are in
+The EBOOT also contains Pimoroni's PicoVector (from
+[picovector-micropython](https://github.com/pimoroni/picovector-micropython)),
+with the PNGdec and JPEGDEC decoders (Apache 2.0) and the QR Code generator
+library (MIT) it bundles, and the pspdev
+toolchain's pspsdk (BSD), newlib (mostly BSD-style) and pthread-embedded
+(LGPL 2.1) libraries. Their licenses are in
 [`ports/psp/release/licenses`](ports/psp/release/licenses)
-and ship in the release zip.
+and ship in the release zip. The examples' font, `fonts/sins.ppf`, is from
+Pimoroni's [tufty2350](https://github.com/pimoroni/tufty2350) (MIT).
