@@ -55,6 +55,10 @@ Most standard modules are there too: os, time, json, re, random, math,
 struct, collections, asyncio and more. Output is text on screen; there's
 no graphics module yet.
 
+os.rename() can only rename within a folder: the PSP can't move a file
+to another folder in one step, so os.rename() raises OSError (EXDEV, 18)
+if you try. Copy the file and delete the old one instead.
+
 Licence
 -------
 MicroPython is MIT-licensed; see LICENSE-MicroPython.txt.

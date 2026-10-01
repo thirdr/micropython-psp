@@ -129,8 +129,9 @@ set_source_files_properties(${MICROPY_DIR}/extmod/vfs_posix_file.c PROPERTIES
 )
 
 # paths.c wraps getcwd() (a drive's top reads "umd0:/", not "umd0:") and
-# libcglue's __path_absolute() (repeated slashes are collapsed).
-target_link_options(${MICROPY_TARGET} PRIVATE -Wl,--wrap=getcwd -Wl,--wrap=__path_absolute)
+# libcglue's __path_absolute() (repeated slashes are collapsed), and rename()
+# (moving to another folder fails with EXDEV).
+target_link_options(${MICROPY_TARGET} PRIVATE -Wl,--wrap=getcwd -Wl,--wrap=__path_absolute -Wl,--wrap=rename)
 
 include(${MICROPY_DIR}/py/mkrules.cmake)
 

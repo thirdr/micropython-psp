@@ -7,6 +7,7 @@ import sys
 import fsmod
 
 _failures = 0
+_EXDEV = 18  # newlib's value; MicroPython's errno module has no EXDEV name
 
 
 def _result(name, ok, detail=""):
@@ -51,14 +52,25 @@ with open("bytes.bin", "rb") as f:
     data = f.read()
 _result("binary round trip", data == bytes(range(256)), "len={}".format(len(data)))
 
-# sceIoRename can't move a file to another folder: it ignores any folder in
-# the new name. So rename within one folder only.
+# sceIoRename can't move a file to another folder (it ignores any folder in
+# the new name), so the port raises EXDEV for that and leaves the file alone.
 os.mkdir("subdir")
 with open("subdir/a.bin", "wb") as f:
     f.write(data)
 os.rename("subdir/a.bin", "subdir/b.bin")
 listing = [n.lower() for n in os.listdir("subdir")]
 _result("mkdir and rename", listing == ["b.bin"], repr(listing))
+try:
+    os.rename("subdir/b.bin", "c.bin")
+    err = None
+except OSError as e:
+    err = e.errno
+listing = [n.lower() for n in os.listdir("subdir")]
+_result("rename across folders raises EXDEV", err == _EXDEV and listing == ["b.bin"],
+        "errno={} listing={}".format(err, listing))
+os.rename("SUBDIR/b.bin", "subdir/b2.bin")
+os.rename("subdir/b2.bin", "subdir/b.bin")
+_result("rename folder match ignores case", [n.lower() for n in os.listdir("subdir")] == ["b.bin"])
 os.remove("subdir/b.bin")
 os.remove("bytes.bin")
 os.rmdir("subdir")
