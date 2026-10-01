@@ -164,6 +164,7 @@ def run_script(name):
     finally:
         ui.release_display()
         ui.stop_audio()
+        ui.stop_network()
         restore_cwd(cwd)
     del scope
     gc.collect()

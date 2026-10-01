@@ -30,7 +30,8 @@ imported.
 
 The scripts that come with this zip are examples: hello.py, buttons.py,
 stick.py, dice.py, clock.py, notes.py and tasks.py, for graphics,
-bounce.py, sketch.py and clockface.py, and for sound, keys.py. Read them, change them, or delete
+bounce.py, sketch.py and clockface.py, for sound, keys.py, and for
+Wi-Fi, wifi.py. Read them, change them, or delete
 them.
 
 The psp module
@@ -84,6 +85,20 @@ play on the PSP's hardware decoder. Up to 8 sounds play at once, at most
 2 of them MP3s; one more stops the oldest. Sounds stop when the script
 ends.
 
+Wi-Fi
+-----
+    import network, requests
+    wlan = network.WLAN()
+    wlan.profiles()          # the networks saved in Settings
+    wlan.connect("Home")     # by name or number
+    print(wlan.ifconfig())   # (ip, netmask, gateway, dns)
+    r = requests.get("http://example.com/")
+    wlan.disconnect()
+
+Add your network in Settings > Network Settings first, and turn the Wi-Fi
+switch on. socket is MicroPython's standard module (TCP, UDP, timeouts,
+select.poll). requests does plain http:// only; there's no HTTPS yet.
+
 Most standard modules are there too: os, time, json, re, random, math,
 struct, collections, asyncio and more.
 
@@ -96,10 +111,11 @@ License
 MicroPython for the PlayStation Portable (PSP) is MIT-licensed; see
 LICENSE.txt. MicroPython itself is MIT-licensed too; see
 LICENSE-MicroPython.txt. Pimoroni's PicoVector, with PNGdec and JPEGDEC
-(Apache 2.0) and the QR Code generator library (MIT), and the PSP
-toolchain libraries (pspsdk, newlib and pthread-embedded), also built into
-EBOOT.PBP, have their own licenses, in the licenses folder. The examples'
-font, fonts/sins.ppf, is from Pimoroni's tufty2350 (MIT,
-licenses/tufty2350-fonts). pthread-embedded is LGPL; its source is at
-https://github.com/pspdev/pthread-embedded, and this program's source, to
-rebuild it, is at https://github.com/thirdr/micropython-psp.
+(Apache 2.0) and the QR Code generator library (MIT), micropython-lib's
+requests (MIT) and the PSP toolchain libraries (pspsdk, newlib and
+pthread-embedded), also built into EBOOT.PBP, have their own licenses, in
+the licenses folder. The examples' font, fonts/sins.ppf, is from Pimoroni's
+tufty2350 (MIT, licenses/tufty2350-fonts). pthread-embedded is LGPL;
+its source is at https://github.com/pspdev/pthread-embedded, and this
+program's source, to rebuild it, is at
+https://github.com/thirdr/micropython-psp.

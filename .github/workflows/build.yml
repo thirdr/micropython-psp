@@ -143,6 +143,17 @@ jobs:
           tools/run-ppsspp.sh --files tests/psp build/psp/EBOOT.PBP 60
           grep -q '^psptest: PASS$' build/logs/latest/stdout.log
 
+      # tests/network/server.py stands in for the internet: PPSSPP's emulated
+      # sockets are the runner's own.
+      - name: Run network test
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          python3 tests/network/server.py &
+          sleep 1
+          tools/run-ppsspp.sh --files tests/network build/psp/EBOOT.PBP 90
+          grep -q '^nettest: PASS$' build/logs/latest/stdout.log
+
       - name: Run audio test
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless

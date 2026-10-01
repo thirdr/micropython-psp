@@ -66,9 +66,15 @@ set(MICROPY_SOURCE_PORT
     ${MICROPY_PORT_DIR}/main.c
     ${MICROPY_PORT_DIR}/modaudio.c
     ${MICROPY_PORT_DIR}/modlauncher.c
+    ${MICROPY_PORT_DIR}/modnetwork.c
     ${MICROPY_PORT_DIR}/modpsp.c
     ${MICROPY_PORT_DIR}/mphalport.c
     ${MICROPY_PORT_DIR}/paths.c
+    ${PSP_REPO_DIR}/psp_compat/poll.c
+    ${PSP_REPO_DIR}/psp_compat/psp_socket.c
+    ${PSP_REPO_DIR}/psp_compat/psp_socket_block.c
+    # MicroPython's POSIX socket module, over libcglue's sockets.
+    ${MICROPY_DIR}/ports/unix/modsocket.c
 )
 
 set(MICROPY_SOURCE_QSTR
@@ -124,6 +130,15 @@ target_link_libraries(${MICROPY_TARGET} PRIVATE
     pspdmac
     pspge
     pspmp3
+    pspsdk
+    pspnet_apctl
+    # Each stub library must land in one piece. Otherwise sceNetInetInit
+    # (pulled in by libpspsdk) and the rest (pulled in later by libcglue's
+    # sockets) end up in two runs with other modules' stubs between them,
+    # and the module's import table binds the wrong functions.
+    -Wl,--whole-archive pspnet_resolver pspnet_inet -Wl,--no-whole-archive
+    pspnet
+    pspwlan
     psppower
     psprtc
     psputility
@@ -137,10 +152,24 @@ set_source_files_properties(${MICROPY_DIR}/extmod/vfs_posix_file.c PROPERTIES
     COMPILE_DEFINITIONS "mp_sys_stdin_obj=vfs_posix_unused_stdin_obj;mp_sys_stdout_obj=vfs_posix_unused_stdout_obj;mp_sys_stderr_obj=vfs_posix_unused_stderr_obj"
 )
 
+# modsocket.c needs getaddrinfo(), inet_pton()/inet_ntop() and the IPv6
+# address types, which pspdev's headers lack: psp_compat/psp_socket.h.
+set_source_files_properties(${MICROPY_DIR}/ports/unix/modsocket.c PROPERTIES
+    COMPILE_OPTIONS "-include;psp_socket.h"
+)
+
 # paths.c wraps getcwd() (a drive's top reads "umd0:/", not "umd0:") and
 # libcglue's __path_absolute() (repeated slashes are collapsed), and rename()
 # (moving to another folder fails with EXDEV).
 target_link_options(${MICROPY_TARGET} PRIVATE -Wl,--wrap=getcwd -Wl,--wrap=__path_absolute -Wl,--wrap=rename)
+
+# psp_socket_block.c makes blocking sockets block in PPSSPP, which doesn't
+# implement them yet (on hardware the wrappers pass straight through).
+target_link_options(${MICROPY_TARGET} PRIVATE
+    -Wl,--wrap=socket -Wl,--wrap=fcntl -Wl,--wrap=setsockopt
+    -Wl,--wrap=recv -Wl,--wrap=recvfrom -Wl,--wrap=send -Wl,--wrap=sendto
+    -Wl,--wrap=accept -Wl,--wrap=read -Wl,--wrap=write
+)
 
 include(${MICROPY_DIR}/py/mkrules.cmake)
 

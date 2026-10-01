@@ -9,8 +9,8 @@ custom firmware and in the [PPSSPP](https://www.ppsspp.org) emulator.
 Scripts can read the buttons, the analog stick, the battery, the clock and the
 memory stick, print text, draw on the screen with Pimoroni's
 [PicoVector](https://github.com/pimoroni/picovector-micropython) at 60 frames
-a second, and play sound. There's no networking yet. If you'd like to see
-more, star the repo or open an issue: that decides how much further this goes.
+a second, play sound, and connect to Wi-Fi. If you'd like to see more, star
+the repo or open an issue: that decides how much further this goes.
 
 ## Installing
 
@@ -46,7 +46,7 @@ imported.
 
 The zip comes with examples: `hello`, `buttons`, `stick`, `dice`, `clock`,
 `notes` and `tasks`, plus `bounce`, `sketch` and `clockface` for graphics
-and `keys` for sound.
+`keys` for sound and `wifi` for networking.
 They're in [`examples/`](examples) too.
 
 ## The `psp` module
@@ -145,6 +145,29 @@ audio.stop()             # stop everything
   `space()` says how many bytes fit without waiting, `close()` ends it.
 - When a script ends, the launcher stops its sounds.
 
+## Wi-Fi: `network`, `socket` and `requests`
+
+```python
+import network, requests
+
+wlan = network.WLAN()
+wlan.profiles()            # [(1, "Home"), ...]: the networks saved in Settings
+wlan.connect("Home")       # by name or number; waits until connected
+print(wlan.ifconfig())     # (ip, netmask, gateway, dns)
+r = requests.get("http://example.com/")
+print(r.status_code, r.text[:60])
+wlan.disconnect()
+```
+
+- The PSP connects with the networks saved in its own Settings > Network
+  Settings, so add yours there first, and turn the Wi-Fi switch on. Which
+  security types work depends on your PSP's firmware.
+- `socket` is MicroPython's standard module: TCP and UDP, `getaddrinfo`,
+  timeouts, non-blocking sockets and `select.poll`.
+- `requests` (from micropython-lib) does plain `http://` only: there's no
+  HTTPS yet.
+- When a script ends, the launcher disconnects.
+
 ## What works and what doesn't
 
 **Works:**
@@ -161,7 +184,7 @@ audio.stop()             # stop everything
   and when the screen fills up it wraps back to the top.
 - **No interactive prompt (REPL).** You write scripts on a computer and run
   them from the launcher.
-- **No Wi-Fi, USB or threads.**
+- **No HTTPS, USB or threads.**
 - **Floats are single precision** (about 7 significant digits).
 - **`os.rename` can't move a file to another folder.** The PSP can only rename
   within a folder, so a move raises `OSError` (`EXDEV`, 18). Copy the file
@@ -209,7 +232,8 @@ MIT; see [`LICENSE`](LICENSE). MicroPython itself is MIT-licensed too; see
 The EBOOT also contains Pimoroni's PicoVector (from
 [picovector-micropython](https://github.com/pimoroni/picovector-micropython)),
 with the PNGdec and JPEGDEC decoders (Apache 2.0) and the QR Code generator
-library (MIT) it bundles, and the pspdev
+library (MIT) it bundles, `requests` (MIT,
+from [micropython-lib](https://github.com/micropython/micropython-lib)) and the pspdev
 toolchain's pspsdk (BSD), newlib (mostly BSD-style) and pthread-embedded
 (LGPL 2.1) libraries. Their licenses are in
 [`ports/psp/release/licenses`](ports/psp/release/licenses)

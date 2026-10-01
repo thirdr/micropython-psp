@@ -1,8 +1,8 @@
-// poll() for pspdev's newlib, which doesn't have one.
+// poll() for pspdev's newlib, which doesn't have one. The implementation is
+// in poll.c.
 //
-// MicroPython's VfsPosix only polls regular files (for select/asyncio), and
-// a regular file is always ready to read and write, so this reports every
-// requested event as ready.
+// Sockets are polled with libcglue's select(). Anything else (regular files,
+// which VfsPosix polls for select/asyncio) is always ready to read and write.
 #ifndef PSP_COMPAT_POLL_H
 #define PSP_COMPAT_POLL_H
 
@@ -21,16 +21,6 @@ struct pollfd {
     short revents;
 };
 
-static inline int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
-    (void)timeout;
-    int ready = 0;
-    for (nfds_t i = 0; i < nfds; i++) {
-        fds[i].revents = fds[i].events & (POLLIN | POLLOUT);
-        if (fds[i].revents) {
-            ready++;
-        }
-    }
-    return ready;
-}
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 
 #endif // PSP_COMPAT_POLL_H
