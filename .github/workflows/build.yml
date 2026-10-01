@@ -215,5 +215,5 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" release/*.zip \
               --repo "$GITHUB_REPOSITORY" \
-              --title "MicroPython for the PlayStation Portable (PSP) $GITHUB_REF_NAME" --generate-notes
+              --title "$GITHUB_REF_NAME" --generate-notes
           fi
