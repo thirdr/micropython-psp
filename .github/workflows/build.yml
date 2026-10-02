@@ -177,9 +177,19 @@ jobs:
         run: |
           mkdir -p build/examples-test
           cp tests/examples/main.py examples/*.py build/examples-test/
-          cp -R examples/fonts build/examples-test/
+          cp -R examples/fonts examples/demos examples/assets build/examples-test/
           tools/run-ppsspp.sh --files build/examples-test build/psp/EBOOT.PBP 90
           grep -q '^examplestest: PASS$' build/logs/latest/stdout.log
+
+      - name: Run the demos (each one a few frames)
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          mkdir -p build/demos-test
+          cp tests/demos/main.py build/demos-test/
+          cp -R examples/demos examples/assets examples/fonts build/demos-test/
+          tools/run-ppsspp.sh --files build/demos-test build/psp/EBOOT.PBP 120
+          grep -q '^demostest: PASS$' build/logs/latest/stdout.log
 
       # The test suite lives in the micropython submodule; its own nested
       # submodules (lib/) aren't needed to run it.

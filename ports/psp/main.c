@@ -91,6 +91,20 @@ static void mount_filesystem(void) {
     }
 }
 
+// picovector's text() markup registry belongs to the frozen _markup module,
+// and picovector doesn't keep it alive itself, so hold the module for good.
+MP_REGISTER_ROOT_POINTER(mp_obj_t psp_markup_module);
+
+static void import_markup(void) {
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0) {
+        MP_STATE_PORT(psp_markup_module) = mp_import_name(MP_QSTR__markup, mp_const_none, MP_OBJ_NEW_SMALL_INT(0));
+        nlr_pop();
+    } else {
+        mp_obj_print_exception(&mp_plat_print, MP_OBJ_FROM_PTR(nlr.ret_val));
+    }
+}
+
 int main(int argc, char *argv[]) {
     setup_callbacks();
     scePowerSetClockFrequency(333, 333, 166);
@@ -111,6 +125,7 @@ int main(int argc, char *argv[]) {
     mount_filesystem();
     // sys.path is ['', '.frozen'] by default; add the EBOOT folder's lib/.
     mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_lib));
+    import_markup();
 
     pyexec_file_if_exists("boot.py");
     if (mp_import_stat("main.py") == MP_IMPORT_STAT_FILE) {

@@ -34,6 +34,10 @@ bounce.py, sketch.py and clockface.py, for sound, keys.py, and for
 Wi-Fi, wifi.py. Read them, change them, or delete
 them.
 
+demos.py is a tour of PicoVector: 24 short demos from Pimoroni's Tufty
+2350, redrawn for the PSP's screen. Up and Down change demo, START
+finishes. Each demo is a small module in the demos folder.
+
 The psp module
 --------------
     import psp
@@ -116,8 +120,9 @@ LICENSE-MicroPython.txt. Pimoroni's PicoVector, with PNGdec and JPEGDEC
 (Apache 2.0) and the QR Code generator library (MIT), micropython-lib's
 requests (MIT) and the PSP toolchain libraries (pspsdk, newlib and
 pthread-embedded), also built into EBOOT.PBP, have their own licenses, in
-the licenses folder. The examples' font, fonts/sins.ppf, is from Pimoroni's
-tufty2350 (MIT, licenses/tufty2350-fonts). pthread-embedded is LGPL;
+the licenses folder. The demos, their skull sprite (assets/skull.png) and
+the examples' fonts (fonts/sins.ppf, fonts/compass.ppf) are from Pimoroni's
+tufty2350 (MIT, licenses/tufty2350). pthread-embedded is LGPL;
 its source is at https://github.com/pspdev/pthread-embedded, and this
 program's source, to rebuild it, is at
 https://github.com/thirdr/micropython-psp.

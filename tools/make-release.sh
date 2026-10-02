@@ -8,11 +8,13 @@
 #   PSP/GAME/MicroPython/EBOOT.PBP
 #   PSP/GAME/MicroPython/*.py              (from examples/)
 #   PSP/GAME/MicroPython/fonts/            (from examples/fonts/)
+#   PSP/GAME/MicroPython/demos/, assets/   (from examples/: demos.py's demos
+#                                           and their sprite)
 #   PSP/GAME/MicroPython/README.txt        (from ports/psp/release/)
 #   PSP/GAME/MicroPython/LICENSE.txt       (this port, MIT)
 #   PSP/GAME/MicroPython/LICENSE-MicroPython.txt
 #   PSP/GAME/MicroPython/licenses/         (PicoVector's decoders and QR code
-#       library, the examples' font, requests, and pspsdk, newlib and
+#       library, the demos and the examples' fonts, requests, and pspsdk, newlib and
 #       pthread-embedded, which are linked into every PSP EBOOT. From
 #       ports/psp/release/: copies of the libraries' licenses and of
 #       pspdev's share/licenses)
@@ -41,7 +43,7 @@ rm -rf "$stage" "$stage.zip"
 mkdir -p "$game"
 cp "$eboot" "$game/EBOOT.PBP"
 cp "$REPO"/examples/*.py "$game/"
-cp -R "$REPO/examples/fonts" "$game/"
+cp -R "$REPO/examples/fonts" "$REPO/examples/demos" "$REPO/examples/assets" "$game/"
 cp "$REPO/ports/psp/release/README.txt" "$game/README.txt"
 cp "$REPO/LICENSE" "$game/LICENSE.txt"
 cp "$REPO/micropython/LICENSE" "$game/LICENSE-MicroPython.txt"

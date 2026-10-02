@@ -1,7 +1,7 @@
 # Example check: runs every script in examples/ headless. Run with the
 # examples copied in beside this file (as tools/make-release.sh and CI do):
 #   mkdir -p build/examples-test && cp tests/examples/main.py examples/*.py build/examples-test/
-#   cp -R examples/fonts build/examples-test/
+#   cp -R examples/fonts examples/demos examples/assets build/examples-test/
 #   tools/run-ppsspp.sh --files build/examples-test build/psp/EBOOT.PBP 60
 #
 # Headless PPSSPP has no buttons, so a stand-in psp module passes everything
