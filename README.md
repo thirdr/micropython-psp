@@ -44,9 +44,10 @@ If the folder has a `main.py`, MicroPython runs that instead of showing the
 list (after `boot.py`, if there is one). Modules in a `lib/` folder can be
 imported.
 
-The zip comes with examples: `hello`, `buttons`, `stick`, `dice`, `clock`,
-`notes`, `tasks` and `colours`, plus `bounce`, `sketch` and `clockface` for
-graphics, `keys` for sound and `wifi` for networking.
+The zip comes with an example for each part of the port: `hello` (versions,
+clock speed and battery), `buttons`, `stick`, `clock` (the time), `notes`
+(files), `tasks` (asyncio), `colours` (text on screen), `keys` (sound),
+`wifi` (networking) and `demos` (graphics).
 They're in [`examples/`](examples) too.
 
 `demos` is a tour of PicoVector: 24 short demos from Pimoroni's Tufty 2350
@@ -154,7 +155,7 @@ vector (`.af`) and pixel (`.ppf`) fonts, and tweens. On the PSP:
 - Fonts load from files: `font.load("fonts/sins.ppf")` with a folder in the
   name opens that file, relative to the script's folder. A name on its own
   (`font.load("sins")`, or `font.sins`) looks in folders such as
-  `/rom/fonts`, which the PSP doesn't have. The examples come with
+  `/rom/fonts`, which the PSP doesn't have. The demos come with
   `fonts/sins.ppf`, one of the Badgeware pixel fonts.
 - Text markup works as on the Tufty: `[pen:r,g,b]` inside a string changes
   colour mid-text, and `image.add_glyph(name, fn)` adds codes of your own.
@@ -331,6 +332,6 @@ from [micropython-lib](https://github.com/micropython/micropython-lib)) and the 
 toolchain's pspsdk (BSD), newlib (mostly BSD-style) and pthread-embedded
 (LGPL 2.1) libraries. Their licenses are in
 [`ports/psp/release/licenses`](ports/psp/release/licenses)
-and ship in the release zip. The demos, their skull sprite and the examples'
+and ship in the release zip. The demos, their skull sprite and their
 fonts (`fonts/sins.ppf`, `fonts/compass.ppf`) are from Pimoroni's
 [tufty2350](https://github.com/pimoroni/tufty2350) (MIT).

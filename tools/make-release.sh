@@ -16,7 +16,7 @@
 #   PSP/GAME/MicroPython/LICENSE.txt       (this port, MIT)
 #   PSP/GAME/MicroPython/LICENSE-MicroPython.txt
 #   PSP/GAME/MicroPython/licenses/         (PicoVector's decoders and QR code
-#       library, the demos and the examples' fonts, requests, and pspsdk, newlib and
+#       library, the demos and their fonts, requests, and pspsdk, newlib and
 #       pthread-embedded, which are linked into every PSP EBOOT. From
 #       ports/psp/release/: copies of the libraries' licenses and of
 #       pspdev's share/licenses)
