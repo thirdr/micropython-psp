@@ -57,6 +57,7 @@ set(MICROPY_QSTRDEFS_PORT
 set(MICROPY_SOURCE_SHARED
     ${MICROPY_DIR}/shared/readline/readline.c
     ${MICROPY_DIR}/shared/runtime/gchelper_generic.c
+    ${MICROPY_DIR}/shared/runtime/interrupt_char.c
     ${MICROPY_DIR}/shared/runtime/pyexec.c
     ${MICROPY_DIR}/shared/runtime/sys_stdio_mphal.c
     ${MICROPY_DIR}/shared/timeutils/timeutils.c
@@ -174,10 +175,14 @@ target_link_options(${MICROPY_TARGET} PRIVATE
 include(${MICROPY_DIR}/py/mkrules.cmake)
 
 # ICON0.PNG is the XMB icon, drawn by tools/make_icon.py.
+# A PRX inside the EBOOT rather than a plain ELF: PSPLINK loads programs as
+# modules, which 6.xx firmware only allows for PRXs (0x80020148 otherwise),
+# and the XMB and PPSSPP run either.
 create_pbp_file(
     TARGET ${MICROPY_TARGET}
     TITLE "MicroPython"
     ICON_PATH ${MICROPY_PORT_DIR}/assets/ICON0.PNG
+    BUILD_PRX
 )
 
 # For tools/make-release.sh.

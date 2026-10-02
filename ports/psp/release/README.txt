@@ -108,6 +108,15 @@ requests does plain http:// only; there's no HTTPS yet.
 Most standard modules are there too: os, time, json, re, random, math,
 struct, collections, asyncio and more.
 
+A REPL over USB
+---------------
+micropython.prx is the same program as EBOOT.PBP, for PSPLINK: with it and
+a USB cable, MicroPython's >>> prompt runs with your computer's keyboard.
+Start it from PSPLINK's shell with
+    ldstart ms0:/PSP/GAME/MicroPython/micropython.prx repl
+See https://github.com/thirdr/micropython-psp for the setup and a script
+that does it for you. If you don't need the REPL, delete micropython.prx.
+
 os.rename() can only rename within a folder: the PSP can't move a file
 to another folder in one step, so os.rename() raises OSError (EXDEV, 18)
 if you try. Copy the file and delete the old one instead.

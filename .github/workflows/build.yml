@@ -122,6 +122,13 @@ jobs:
           tools/run-ppsspp.sh build/psp-test/EBOOT.PBP 60
           grep -q '^selftest: PASS$' build/logs/latest/stdout.log
 
+      - name: Run REPL test (test build, keystrokes from a file)
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh --files tests/repl build/psp-test/EBOOT.PBP 60
+          python3 tests/repl/check.py build/logs/latest/stdout.log
+
       - name: Run filesystem test
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless

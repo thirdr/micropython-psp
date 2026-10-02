@@ -49,6 +49,12 @@ The zip comes with examples: `hello`, `buttons`, `stick`, `dice`, `clock`,
 `keys` for sound and `wifi` for networking.
 They're in [`examples/`](examples) too.
 
+`demos` is a tour of PicoVector: 24 short demos from Pimoroni's Tufty 2350
+(brushes, blur, gradients, strokes, fill rules, text layout, sprites and a
+raycaster), redrawn for the PSP's 480×272 screen. Up and Down change demo,
+and START finishes. Each demo is a small module in `demos/` with an
+`update(ticks)` function, which makes them a good place to start your own.
+
 ## The `psp` module
 
 ```python
@@ -117,6 +123,8 @@ vector (`.af`) and pixel (`.ppf`) fonts, and tweens. On the PSP:
   (`font.load("sins")`, or `font.sins`) looks in folders such as
   `/rom/fonts`, which the PSP doesn't have. The examples come with
   `fonts/sins.ppf`, one of the Badgeware pixel fonts.
+- Text markup works as on the Tufty: `[pen:r,g,b]` inside a string changes
+  colour mid-text, and `image.add_glyph(name, fn)` adds codes of your own.
 - While a script draws, `print()` doesn't reach the screen. When the script
   ends, the launcher takes the screen back with the last frame still
   showing, and the next script's `screen` starts black.
@@ -170,12 +178,51 @@ wlan.disconnect()
   HTTPS yet.
 - When a script ends, the launcher disconnects.
 
+## A REPL over USB (PSPLINK)
+
+For development, MicroPython's `>>>` prompt can run on the PSP with your
+Mac's (or PC's) keyboard, over a USB cable, using
+[PSPLINK](https://github.com/pspdev/psplinkusb). The PSP's working folder is
+then a folder on your computer, so you can edit a module there and `import`
+it straight away.
+
+One-off setup:
+
+1. Copy the `psplink` folder from PSPLINK's
+   [release](https://github.com/pspdev/psplinkusb/releases) to
+   `PSP/GAME/PSPLINK/` on the memory stick.
+2. Install the [pspdev](https://github.com/pspdev/pspdev) toolchain, which has
+   `usbhostfs_pc` and `pspsh`, and
+   [`mpremote`](https://docs.micropython.org/en/latest/reference/mpremote.html).
+
+Each time:
+
+1. Connect the PSP by USB, and start PSPLINK from the Game menu (not USB
+   mode).
+2. In the build folder (`build/psp`), which the PSP then sees as
+   `host0:/`, run `usbhostfs_pc` and leave it running.
+3. In another terminal, run `tools/psp-repl.sh`. It starts MicroPython in
+   REPL mode (`./micropython.prx repl` in `pspsh`: PSPLINK starts the
+   build's `.prx`, not the EBOOT) and opens it in `mpremote`. Press Enter for
+   a prompt; Ctrl-] leaves `mpremote`.
+
+To use the copy from the release zip instead, with the scripts on the memory
+stick, run usbhostfs_pc in any folder and
+`tools/psp-repl.sh --prx ms0:/PSP/GAME/MicroPython/micropython.prx`. The zip
+ships `micropython.prx` next to `EBOOT.PBP` for this; delete it if you don't
+need the REPL.
+
+The prompt has history, tab completion, paste mode (Ctrl-E) and Ctrl-C to stop
+running code; Ctrl-D starts MicroPython afresh. The session shows on the
+PSP's screen too. Other `mpremote` commands work through the same script,
+for example `tools/psp-repl.sh run script.py`.
+
 ## What works and what doesn't
 
 **Works:**
 - Most of MicroPython's standard library: `os`, `time`, `json`, `re`,
   `random`, `math`, `struct`, `collections`, `asyncio`, `deflate`, `hashlib`
-  and more. MicroPython's own test suite passes (793 tests).
+  and more. MicroPython's own test suite passes (801 tests).
 - Files on the memory stick, with `open()` and `os`. Scripts run with their
   own folder as the working directory.
 - `time` reads the PSP's real-time clock and time zone.
@@ -184,8 +231,8 @@ wlan.disconnect()
 **Doesn't work yet:**
 - **Text from `print()` doesn't scroll.** It goes to the PSP's debug screen,
   and when the screen fills up it wraps back to the top.
-- **No interactive prompt (REPL).** You write scripts on a computer and run
-  them from the launcher.
+- **The REPL needs a computer.** It runs over USB with PSPLINK (see above);
+  on the PSP alone, you run scripts from the launcher.
 - **No HTTPS, USB or threads.**
 - **Floats are single precision** (about 7 significant digits).
 - **`os.rename` can't move a file to another folder.** The PSP can only rename
@@ -239,5 +286,6 @@ from [micropython-lib](https://github.com/micropython/micropython-lib)) and the 
 toolchain's pspsdk (BSD), newlib (mostly BSD-style) and pthread-embedded
 (LGPL 2.1) libraries. Their licenses are in
 [`ports/psp/release/licenses`](ports/psp/release/licenses)
-and ship in the release zip. The examples' font, `fonts/sins.ppf`, is from
-Pimoroni's [tufty2350](https://github.com/pimoroni/tufty2350) (MIT).
+and ship in the release zip. The demos, their skull sprite and the examples'
+fonts (`fonts/sins.ppf`, `fonts/compass.ppf`) are from Pimoroni's
+[tufty2350](https://github.com/pimoroni/tufty2350) (MIT).

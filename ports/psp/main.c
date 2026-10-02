@@ -6,7 +6,11 @@
 // it runs the launcher, or the selftest in test builds. Under PPSSPPHeadless
 // it captures the screen and exits by itself; in the PPSSPP GUI or on
 // hardware it waits for HOME -> Exit.
+//
+// Started from PSPLINK's shell as "./micropython.prx repl", it runs MicroPython's
+// REPL over the USB link instead, where Ctrl-D soft-resets.
 #include <stdlib.h>
+#include <string.h>
 
 #include <pspkernel.h>
 #include <pspdebug.h>
@@ -24,6 +28,7 @@
 #include "extmod/vfs_posix.h"
 #include "shared/runtime/gchelper.h"
 #include "shared/runtime/pyexec.h"
+#include "psp_display.h"
 
 #include "psp_emu.h"
 
@@ -105,6 +110,57 @@ static void import_markup(void) {
     }
 }
 
+void psp_audio_reset(void);
+void psp_buttons_reset(void);
+void psp_network_reset(void);
+
+// The REPL is for development, over PSPLINK: "./micropython.prx repl" in
+// pspsh (PSPLINK starts the build's PRX; it can't start an EBOOT.PBP).
+// Test builds also take it from a file standing in for the keyboard, since
+// PPSSPPHeadless has no stdin and can't pass arguments.
+#define PSP_REPL_TEST_INPUT "repl-input.txt"
+
+static bool want_repl(int argc, char *argv[], const char **feed) {
+    *feed = NULL;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "repl") == 0) {
+            return true;
+        }
+    }
+    #if MICROPY_PSP_TEST_BUILD
+    SceIoStat st;
+    if (sceIoGetstat(PSP_REPL_TEST_INPUT, &st) >= 0) {
+        *feed = PSP_REPL_TEST_INPUT;
+        return true;
+    }
+    #endif
+    return false;
+}
+
+// Returns when the REPL asks for a soft reset (Ctrl-D, or sys.exit()).
+static void run_repl(void) {
+    for (;;) {
+        if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
+            if (pyexec_raw_repl() != 0) {
+                break;
+            }
+        } else {
+            if (pyexec_friendly_repl() != 0) {
+                break;
+            }
+        }
+    }
+}
+
+// What the launcher does after each script, before a soft reset frees the
+// heap: nothing may still point into it.
+static void reset_hardware(void) {
+    psp_display_release();
+    psp_audio_reset();
+    psp_network_reset();
+    psp_buttons_reset();
+}
+
 int main(int argc, char *argv[]) {
     setup_callbacks();
     scePowerSetClockFrequency(333, 333, 166);
@@ -119,19 +175,37 @@ int main(int argc, char *argv[]) {
         mp_hal_stdout_tx_str("FATAL: can't allocate the GC heap\n");
         psp_exit();
     }
-    gc_init(heap, heap + heap_size);
 
-    mp_init();
-    mount_filesystem();
-    // sys.path is ['', '.frozen'] by default; add the EBOOT folder's lib/.
-    mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_lib));
-    import_markup();
+    const char *feed;
+    bool repl = want_repl(argc, argv, &feed);
+    if (repl) {
+        psp_stdin_start(feed);
+    }
 
-    pyexec_file_if_exists("boot.py");
-    if (mp_import_stat("main.py") == MP_IMPORT_STAT_FILE) {
-        pyexec_file("main.py");
-    } else {
-        pyexec_frozen_module(PSP_FALLBACK_MODULE, false);
+    for (;;) {
+        gc_init(heap, heap + heap_size);
+        mp_init();
+        mount_filesystem();
+        // sys.path is ['', '.frozen'] by default; add the EBOOT folder's lib/.
+        mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_lib));
+        import_markup();
+
+        pyexec_file_if_exists("boot.py");
+        if (!repl) {
+            if (mp_import_stat("main.py") == MP_IMPORT_STAT_FILE) {
+                pyexec_file("main.py");
+            } else {
+                pyexec_frozen_module(PSP_FALLBACK_MODULE, false);
+            }
+            break;
+        }
+        run_repl();
+        if (psp_stdin_eof()) {
+            break;
+        }
+        reset_hardware();
+        mp_deinit();
+        mp_hal_stdout_tx_str("MPY: soft reboot\r\n");
     }
     mp_deinit();
 

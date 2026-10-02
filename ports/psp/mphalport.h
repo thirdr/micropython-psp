@@ -1,6 +1,8 @@
 #ifndef MICROPY_INCLUDED_PSP_MPHALPORT_H
 #define MICROPY_INCLUDED_PSP_MPHALPORT_H
 
+#include <stdbool.h>
+
 #include <psptypes.h>
 #include <pspkernel.h>
 #include <psprtc.h>
@@ -48,9 +50,15 @@ static inline void mp_hal_delay_ms(mp_uint_t ms) {
 #define MICROPY_INTERNAL_WFE(TIMEOUT_MS) \
     sceKernelDelayThread(((int)(TIMEOUT_MS) < 0 || (TIMEOUT_MS) > 10 ? 10 : (TIMEOUT_MS)) * 1000)
 
-static inline void mp_hal_set_interrupt_char(char c) {
-    (void)c;
-}
+// Ctrl-C handling comes from shared/runtime/interrupt_char.c.
+#include "shared/runtime/interrupt_char.h"
+
+// REPL mode's stdin: a thread reads fd 0 (PSPLINK's USB link) so Ctrl-C can
+// interrupt running code. Test builds can pass a file to read instead, where
+// a 0 byte means "pause half a second"; psp_stdin_eof() is then true once
+// it's all been read.
+void psp_stdin_start(const char *feed_path);
+bool psp_stdin_eof(void);
 
 // Used by VfsPosix to retry a file call interrupted with EINTR (PEP 475).
 // Taken from ports/unix/mphalport.h.
