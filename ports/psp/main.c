@@ -1,6 +1,6 @@
 // MicroPython entry point for the Sony PSP.
 //
-// Sets up the PSP (clock, exit callback, debug screen), starts MicroPython
+// Sets up the PSP (clock, exit callback, the console on screen), starts MicroPython
 // with a GC heap from malloc, mounts the filesystem, and runs boot.py then
 // main.py from the EBOOT's folder (the working directory). Without a main.py
 // it runs the launcher, or the selftest in test builds. Under PPSSPPHeadless
@@ -13,7 +13,6 @@
 #include <string.h>
 
 #include <pspkernel.h>
-#include <pspdebug.h>
 #include <pspdisplay.h>
 #include <psppower.h>
 
@@ -28,7 +27,7 @@
 #include "extmod/vfs_posix.h"
 #include "shared/runtime/gchelper.h"
 #include "shared/runtime/pyexec.h"
-#include "psp_display.h"
+#include "psp_port.h"
 
 #include "psp_emu.h"
 
@@ -110,10 +109,6 @@ static void import_markup(void) {
     }
 }
 
-void psp_audio_reset(void);
-void psp_buttons_reset(void);
-void psp_network_reset(void);
-
 // The REPL is for development, over PSPLINK: "./micropython.prx repl" in
 // pspsh (PSPLINK starts the build's PRX; it can't start an EBOOT.PBP).
 // Test builds also take it from a file standing in for the keyboard, since
@@ -137,8 +132,20 @@ static bool want_repl(int argc, char *argv[], const char **feed) {
     return false;
 }
 
+// A fresh MicroPython on the GC heap: the filesystem, lib/ on sys.path,
+// text markup, then boot.py.
+static void start_micropython(char *heap, size_t heap_size) {
+    gc_init(heap, heap + heap_size);
+    mp_init();
+    mount_filesystem();
+    // sys.path is ['', '.frozen'] by default; add the EBOOT folder's lib/.
+    mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_lib));
+    import_markup();
+    pyexec_file_if_exists("boot.py");
+}
+
 // Returns when the REPL asks for a soft reset (Ctrl-D, or sys.exit()).
-static void run_repl(void) {
+static void repl_until_reset(void) {
     for (;;) {
         if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
             if (pyexec_raw_repl() != 0) {
@@ -152,19 +159,10 @@ static void run_repl(void) {
     }
 }
 
-// What the launcher does after each script, before a soft reset frees the
-// heap: nothing may still point into it.
-static void reset_hardware(void) {
-    psp_display_release();
-    psp_audio_reset();
-    psp_network_reset();
-    psp_buttons_reset();
-}
-
 int main(int argc, char *argv[]) {
     setup_callbacks();
     scePowerSetClockFrequency(333, 333, 166);
-    pspDebugScreenInit();
+    psp_console_init();
     mp_hal_init();
 
     mp_cstack_init_with_sp_here(MICROPY_PSP_MAIN_STACK_KB * 1024);
@@ -177,37 +175,29 @@ int main(int argc, char *argv[]) {
     }
 
     const char *feed;
-    bool repl = want_repl(argc, argv, &feed);
-    if (repl) {
+    if (want_repl(argc, argv, &feed)) {
+        // Each soft reset starts a fresh MicroPython, until the input ends
+        // (only a test build's file does).
         psp_stdin_start(feed);
-    }
-
-    for (;;) {
-        gc_init(heap, heap + heap_size);
-        mp_init();
-        mount_filesystem();
-        // sys.path is ['', '.frozen'] by default; add the EBOOT folder's lib/.
-        mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_lib));
-        import_markup();
-
-        pyexec_file_if_exists("boot.py");
-        if (!repl) {
-            if (mp_import_stat("main.py") == MP_IMPORT_STAT_FILE) {
-                pyexec_file("main.py");
-            } else {
-                pyexec_frozen_module(PSP_FALLBACK_MODULE, false);
+        for (;;) {
+            start_micropython(heap, heap_size);
+            repl_until_reset();
+            psp_end_script();
+            mp_deinit();
+            if (psp_stdin_eof()) {
+                break;
             }
-            break;
+            mp_hal_stdout_tx_str("MPY: soft reboot\r\n");
         }
-        run_repl();
-        if (psp_stdin_eof()) {
-            break;
+    } else {
+        start_micropython(heap, heap_size);
+        if (mp_import_stat("main.py") == MP_IMPORT_STAT_FILE) {
+            pyexec_file("main.py");
+        } else {
+            pyexec_frozen_module(PSP_FALLBACK_MODULE, false);
         }
-        reset_hardware();
         mp_deinit();
-        mp_hal_stdout_tx_str("MPY: soft reboot\r\n");
     }
-    mp_deinit();
 
     psp_exit();
 }

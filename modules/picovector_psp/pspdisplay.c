@@ -7,7 +7,7 @@
 // format, so update() copies them to VRAM as they are: into the framebuffer
 // not showing, which then shows from the next vblank.
 //
-// While a script has the screen, the debug console stays off it (print()
+// While a script has the screen, the console stays off it (print()
 // still reaches the logs). The launcher calls psp_display_release() when the
 // script ends: the last frame stays showing, and the next script that asks
 // for screen gets a new, black one.
@@ -38,7 +38,7 @@
 MP_REGISTER_ROOT_POINTER(mp_obj_t psp_display_screen);
 MP_REGISTER_ROOT_POINTER(void *psp_display_pixels);
 
-// The VRAM framebuffer showing. Buffer 0 is the one the debug console and
+// The VRAM framebuffer showing. Buffer 0 is the one the console and
 // the launcher draw into; 1 sits right after it.
 static int front = 0;
 

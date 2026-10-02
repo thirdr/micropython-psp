@@ -71,6 +71,7 @@ set(MICROPY_SOURCE_PORT
     ${MICROPY_PORT_DIR}/modpsp.c
     ${MICROPY_PORT_DIR}/mphalport.c
     ${MICROPY_PORT_DIR}/paths.c
+    ${MICROPY_PORT_DIR}/psp_console.c
     ${PSP_REPO_DIR}/psp_compat/poll.c
     ${PSP_REPO_DIR}/psp_compat/psp_socket.c
     ${PSP_REPO_DIR}/psp_compat/psp_socket_block.c

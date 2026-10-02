@@ -29,10 +29,9 @@ list (after boot.py, if there is one). Modules in a lib/ folder can be
 imported.
 
 The scripts that come with this zip are examples: hello.py, buttons.py,
-stick.py, dice.py, clock.py, notes.py and tasks.py, for graphics,
-bounce.py, sketch.py and clockface.py, for sound, keys.py, and for
-Wi-Fi, wifi.py. Read them, change them, or delete
-them.
+stick.py, dice.py, clock.py, notes.py, tasks.py and colours.py, for
+graphics, bounce.py, sketch.py and clockface.py, for sound, keys.py, and
+for Wi-Fi, wifi.py. Read them, change them, or delete them.
 
 demos.py is a tour of PicoVector: 24 short demos from Pimoroni's Tufty
 2350, redrawn for the PSP's screen. Up and Down change demo, START
@@ -56,6 +55,24 @@ The psp module
     psp.freq()            (cpu, bus) clock in MHz; psp.freq(222) sets it
     psp.emulator()        True in PPSSPP
     psp.VERSION           this release's version
+
+Text
+----
+print() writes to the screen, 68 columns by 34 rows, which scrolls when
+full. The ansi module clears it, places text and colours it:
+
+    import ansi
+    ansi.clear()                  clear the screen, cursor at the top left
+    ansi.clear_line()             clear the line from the cursor
+    ansi.move(10, 5)              column 10, row 5 (both from 0)
+    print(ansi.RED + "Game over" + ansi.RESET)
+                                  colours: BLACK RED GREEN YELLOW BLUE
+                                  MAGENTA CYAN WHITE, BRIGHT_RED and so on,
+                                  BG_RED and so on for the background,
+                                  BRIGHT, REVERSE, and RESET for white on
+                                  black
+
+These are ANSI codes, so they work in a terminal over USB too.
 
 Graphics
 --------

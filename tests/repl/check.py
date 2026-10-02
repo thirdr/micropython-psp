@@ -5,7 +5,8 @@
 import sys
 
 EXPECTED = [
-    ("banner", "MicroPython v"),
+    # The version part depends on the build (a tag, or a commit hash).
+    ("banner", "; Sony PSP with Allegrex\nType \"help()\" for more information.\n"),
     ("expression", ">>> 1+1\n2\n"),
     ("auto-indent block", "\n42\n"),
     ("backspace", "\n5\n"),
@@ -13,7 +14,7 @@ EXPECTED = [
     ("paste mode", "paste 0\npaste 1\npaste 2\n"),
     ("raw REPL", "raw REPL; CTRL-B to exit\n>"),
     ("raw REPL run", "OKraw 42\n\x04\x04>"),
-    ("back from raw REPL", "MicroPython v"),
+    ("back from raw REPL", "; Sony PSP with Allegrex\n"),
     ("raw REPL soft reset", "raw REPL; CTRL-B to exit\n>OK\nMPY: soft reboot\nraw REPL; CTRL-B to exit\n>"),
     ("run after it", "OKafter reset\n\x04\x04>"),
     ("soft reset", "MPY: soft reboot\n"),

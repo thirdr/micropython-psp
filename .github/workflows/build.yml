@@ -30,6 +30,18 @@ jobs:
       - name: Fetch picovector's core library
         run: git -C picovector-micropython submodule update --init --depth 1 picovector
 
+      # MicroPython names its version with git describe, which needs the
+      # release tag, and the submodule checkout fetches no tags: without this
+      # the banner says "MicroPython e0e9fbb17e" instead of "v1.28.0".
+      - name: Fetch MicroPython's release tag
+        run: |
+          commit="$(git -C micropython rev-parse HEAD)"
+          tag="$(git -C micropython ls-remote --tags origin | awk -v c="$commit" '$1 == c { sub(/\^\{\}$/, "", $2); print $2; exit }')"
+          if [ -n "$tag" ]; then
+            git -C micropython fetch --depth 1 origin "+$tag:$tag"
+          fi
+          git -C micropython describe --tags --always --match 'v[1-9].*'
+
       - name: Build hello-world
         run: |
           psp-cmake -S tools/hello -B build/hello -DCMAKE_BUILD_TYPE=Release
@@ -126,7 +138,8 @@ jobs:
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
         run: |
-          tools/run-ppsspp.sh --files tests/repl build/psp-test/EBOOT.PBP 60
+          python3 tests/repl/make_input.py build/repl-test
+          tools/run-ppsspp.sh --files build/repl-test build/psp-test/EBOOT.PBP 60
           python3 tests/repl/check.py build/logs/latest/stdout.log
 
       - name: Run filesystem test
@@ -149,6 +162,13 @@ jobs:
         run: |
           tools/run-ppsspp.sh --files tests/psp build/psp/EBOOT.PBP 60
           grep -q '^psptest: PASS$' build/logs/latest/stdout.log
+
+      - name: Run console test (scrolling and ANSI codes)
+        env:
+          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
+        run: |
+          tools/run-ppsspp.sh --files tests/console build/psp/EBOOT.PBP 60
+          grep -q '^consoletest: PASS$' build/logs/latest/stdout.log
 
       # tests/network/server.py stands in for the internet: PPSSPP's emulated
       # sockets are the runner's own.

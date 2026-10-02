@@ -1,14 +1,13 @@
 // Console I/O for the PSP port.
 //
 // stdout goes to the PSP's stdout (fd 1), which PSPLINK and the PPSSPP log
-// both capture, and to the on-screen debug console unless pspdisplay has
-// the screen. Under PPSSPPHeadless it
-// also goes to the emulator's own stdout, which doesn't echo fd 1.
+// both capture, and to the console on screen (psp_console.c) unless
+// pspdisplay has the screen. Under PPSSPPHeadless it also goes to the
+// emulator's own stdout, which doesn't echo fd 1.
 //
 // stdin is only there under PSPLINK, where fd 0 is the USB link to the Mac.
 #include <string.h>
 
-#include <pspdebug.h>
 #include <pspiofilemgr.h>
 #include <pspthreadman.h>
 
@@ -18,9 +17,7 @@
 #include "shared/readline/readline.h"
 #include "psp_display.h"
 #include "psp_emu.h"
-
-// The debug screen's grid: 68 columns of 7 px, 34 rows of 8 px.
-#define SCREEN_COLUMNS 68
+#include "psp_port.h"
 
 static int headless = 0;
 
@@ -28,54 +25,11 @@ void mp_hal_init(void) {
     headless = psp_emu_is_headless();
 }
 
-// The REPL's line editing sends VT100 codes: "\b" and ESC [ n D move the
-// cursor back, ESC [ K erases to the end of the line. The debug screen would
-// print them as glyphs, so act on those, and drop any other ESC [ code and
-// control character (raw REPL's Ctrl-Ds).
-static void screen_print(const char *str, size_t len) {
-    static enum { TEXT, ESC, CSI } state = TEXT;
-    static int param;
-    size_t run = 0;
-    for (size_t i = 0; i < len; i++) {
-        char c = str[i];
-        if (state == TEXT && ((uint8_t)c >= 0x20 || c == '\n' || c == '\r' || c == '\t')) {
-            run++;
-            continue;
-        }
-        pspDebugScreenPrintData(str + i - run, run);
-        run = 0;
-        int x = pspDebugScreenGetX(), y = pspDebugScreenGetY();
-        if (state == TEXT) {
-            if (c == '\b') {
-                pspDebugScreenSetXY(x > 0 ? x - 1 : 0, y);
-            } else if (c == 0x1b) {
-                state = ESC;
-            }
-        } else if (state == ESC) {
-            state = c == '[' ? CSI : TEXT;
-            param = 0;
-        } else if (c >= '0' && c <= '9') {
-            param = param * 10 + (c - '0');
-        } else if (c >= 0x40 && c <= 0x7e) {
-            if (c == 'D') {
-                x -= param > 0 ? param : 1;
-                pspDebugScreenSetXY(x > 0 ? x : 0, y);
-            } else if (c == 'K') {
-                for (int col = x; col < SCREEN_COLUMNS; col++) {
-                    pspDebugScreenPutChar(col * 7, y * 8, 0xffffffff, ' ');
-                }
-            }
-            state = TEXT;
-        }
-    }
-    pspDebugScreenPrintData(str + len - run, run);
-}
-
 mp_uint_t mp_hal_stdout_tx_strn(const char *str, size_t len) {
     sceIoWrite(1, str, len);
     // While a script draws with pspdisplay, the screen is its own.
     if (!psp_display_active()) {
-        screen_print(str, len);
+        psp_console_write(str, len);
     }
     if (headless) {
         psp_emu_send_output(str, len);
@@ -83,8 +37,9 @@ mp_uint_t mp_hal_stdout_tx_strn(const char *str, size_t len) {
     return len;
 }
 
-// The debug screen handles a bare "\n", but in REPL mode the other end is a
-// terminal on the Mac, which needs "\r\n" as on other MicroPython boards.
+// The console on screen handles a bare "\n", but in REPL mode the other end
+// is a terminal on the Mac, which needs "\r\n" as on other MicroPython
+// boards.
 static bool stdin_threaded;
 
 void mp_hal_stdout_tx_strn_cooked(const char *str, size_t len) {
@@ -116,9 +71,6 @@ void mp_hal_stdout_tx_str(const char *str) {
 #define STDIN_BUFFER 1024
 static volatile uint8_t stdin_buffer[STDIN_BUFFER];
 static volatile unsigned stdin_head, stdin_tail;
-static volatile bool stdin_ended;
-static SceUID stdin_fd = 0;
-static bool stdin_feed;
 
 static void stdin_put(int c) {
     if (c == mp_interrupt_char) {
@@ -136,40 +88,62 @@ static void stdin_put(int c) {
 static int stdin_reader(SceSize args, void *argp) {
     char chunk[64];
     for (;;) {
-        int n = sceIoRead(stdin_fd, chunk, sizeof(chunk));
-        if (n <= 0) {
-            if (stdin_feed) {
-                stdin_ended = true;
-                return 0;
-            }
-            sceKernelDelayThread(100000);
-            continue;
-        }
+        int n = sceIoRead(0, chunk, sizeof(chunk));
         for (int i = 0; i < n; i++) {
-            if (stdin_feed && chunk[i] == 0) {
-                sceKernelDelayThread(500000);
-            } else {
-                stdin_put((uint8_t)chunk[i]);
-            }
+            stdin_put((uint8_t)chunk[i]);
+        }
+        if (n <= 0) {
+            sceKernelDelayThread(100000);
         }
     }
+    return 0;
 }
 
-void psp_stdin_start(const char *feed_path) {
-    if (feed_path != NULL) {
-        stdin_fd = sceIoOpen(feed_path, PSP_O_RDONLY, 0);
-        stdin_feed = true;
+#if MICROPY_PSP_TEST_BUILD
+// Test builds: a file stands in for the keyboard, as PPSSPPHeadless has no
+// stdin. A 0 byte pauses half a second, so a Ctrl-C can arrive mid-loop, and
+// the end of the file ends the REPL (psp_stdin_eof()).
+static SceUID feed_fd;
+static volatile bool feed_ended;
+
+static int feed_reader(SceSize args, void *argp) {
+    char c;
+    while (sceIoRead(feed_fd, &c, 1) == 1) {
+        if (c == 0) {
+            sceKernelDelayThread(500000);
+        } else {
+            stdin_put((uint8_t)c);
+        }
     }
+    feed_ended = true;
+    return 0;
+}
+#endif
+
+void psp_stdin_start(const char *feed_path) {
+    SceKernelThreadEntry reader = stdin_reader;
+    #if MICROPY_PSP_TEST_BUILD
+    if (feed_path != NULL) {
+        feed_fd = sceIoOpen(feed_path, PSP_O_RDONLY, 0);
+        reader = feed_reader;
+    }
+    #else
+    (void)feed_path;
+    #endif
     // A higher priority (lower number) than the main thread's 0x20, so a
     // Ctrl-C is seen even while Python code keeps the CPU busy.
-    SceUID thread = sceKernelCreateThread("stdin", stdin_reader, 0x18, 0x1000, PSP_THREAD_ATTR_USER, NULL);
+    SceUID thread = sceKernelCreateThread("stdin", reader, 0x18, 0x1000, PSP_THREAD_ATTR_USER, NULL);
     if (thread >= 0 && sceKernelStartThread(thread, 0, NULL) >= 0) {
         stdin_threaded = true;
     }
 }
 
 bool psp_stdin_eof(void) {
-    return stdin_ended && stdin_head == stdin_tail;
+    #if MICROPY_PSP_TEST_BUILD
+    return feed_ended && stdin_head == stdin_tail;
+    #else
+    return false;
+    #endif
 }
 
 int mp_hal_stdin_rx_chr(void) {

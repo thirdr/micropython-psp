@@ -26,6 +26,7 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"
 #include "py/runtime.h"
+#include "psp_port.h"
 
 #define VOICES          (8)
 #define MP3_SLOTS       (2)

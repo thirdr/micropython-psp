@@ -15,6 +15,7 @@
 #include "py/objstr.h"
 #include "py/runtime.h"
 #include "psp_emu.h"
+#include "psp_port.h"
 
 // Analog sampling is set up on first use. The launcher's _launcher module
 // sets digital-only sampling for itself, but analog mode reads the buttons
@@ -162,9 +163,8 @@ static MP_DEFINE_CONST_FUN_OBJ_1(psp_set_deadzone_obj, psp_set_deadzone);
 
 // Put the input state back as a new script expects it: pressed() and
 // released() forget what they last saw (so their next calls count as first
-// calls) and the dead zone returns to the default. The launcher calls this
-// (through _launcher) before each script, as scripts share one MicroPython
-// session and so this state.
+// calls) and the dead zone returns to the default. Part of psp_end_script(),
+// as scripts share one MicroPython session and so this state.
 void psp_buttons_reset(void) {
     pressed_edges.primed = 0;
     released_edges.primed = 0;

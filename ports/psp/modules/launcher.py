@@ -184,7 +184,6 @@ def restore_cwd(cwd):
 
 def run_script(name):
     wait_release()
-    ui.reset_buttons()
     ui.console()
     cwd = os.getcwd()
     scope = {"__name__": "__main__", "__file__": name}
@@ -199,9 +198,7 @@ def run_script(name):
         ui.release_display()
         sys.print_exception(e)
     finally:
-        ui.release_display()
-        ui.stop_audio()
-        ui.stop_network()
+        ui.end_script()
         restore_cwd(cwd)
     del scope
     gc.collect()

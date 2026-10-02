@@ -1,26 +1,26 @@
 // _launcher: private helpers for the frozen script launcher (launcher.py).
 //
 // Reads the buttons, and draws filled bars and 8x8 text straight into the
-// debug screen's framebuffer at pixel positions. It's deliberately not a
+// console's framebuffer at pixel positions. It's deliberately not a
 // public API: the psp module (buttons, power, vsync) is designed separately,
 // and the launcher can move over to it later.
 #include <string.h>
 
 #include <pspctrl.h>
 #include <pspdisplay.h>
-#include <pspdebug.h>
 #include <pspge.h>
 #include <pspiofilemgr.h>
 
 #include "py/runtime.h"
 #include "psp_display.h"
 #include "psp_emu.h"
+#include "psp_port.h"
 
 #define SCREEN_WIDTH  480
 #define SCREEN_HEIGHT 272
 #define FB_STRIDE     512
 
-// The debug screen draws into the start of VRAM, through the uncached
+// The console draws into the start of VRAM, through the uncached
 // mirror so writes reach the display without a cache flush.
 static u32 *framebuffer(void) {
     return (u32 *)(0x40000000 | (u32)sceGeEdramGetAddr());
@@ -61,23 +61,17 @@ static mp_obj_t launcher_text(size_t n_args, const mp_obj_t *args) {
     size_t len;
     const char *s = mp_obj_str_get_data(args[2], &len);
     u32 pixel = to_pixel(mp_obj_get_int(args[3]));
-    pspDebugScreenEnableBackColor(0);
     for (size_t i = 0; i < len && x + 8 <= SCREEN_WIDTH; i++, x += 8) {
-        pspDebugScreenPutChar(x, y, pixel, (u8)s[i]);
+        psp_console_draw_char(x, y, pixel, (u8)s[i]);
     }
-    pspDebugScreenEnableBackColor(1);
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(launcher_text_obj, 4, 4, launcher_text);
 
-// console(): back to a clear, white-on-black debug console with the cursor
-// at the top left, ready for a script's output.
+// console(): back to a clear, white-on-black console with the cursor at the
+// top left and no colours set, ready for a script's output.
 static mp_obj_t launcher_console(void) {
-    pspDebugScreenSetTextColor(0xffffffff);
-    pspDebugScreenSetBackColor(0xff000000);
-    pspDebugScreenEnableBackColor(1);
-    pspDebugScreenClear();
-    pspDebugScreenSetXY(0, 0);
+    psp_console_reset();
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(launcher_console_obj, launcher_console);
@@ -97,16 +91,20 @@ static mp_obj_t launcher_buttons(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(launcher_buttons_obj, launcher_buttons);
 
-// reset_buttons(): make the next psp.pressed()/psp.released() calls count as
-// first calls, and put the stick's dead zone back to the default, so a script
-// doesn't inherit the previous script's input state.
-void psp_buttons_reset(void);
-
-static mp_obj_t launcher_reset_buttons(void) {
+void psp_end_script(void) {
+    psp_display_release();
+    psp_audio_reset();
+    psp_network_reset();
     psp_buttons_reset();
+}
+
+// end_script(): undo what a script left behind (see psp_port.h), so the next
+// one starts afresh and the launcher has the screen again.
+static mp_obj_t launcher_end_script(void) {
+    psp_end_script();
     return mp_const_none;
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(launcher_reset_buttons_obj, launcher_reset_buttons);
+static MP_DEFINE_CONST_FUN_OBJ_0(launcher_end_script_obj, launcher_end_script);
 
 // release_display(): take the screen back from pspdisplay, if a script
 // used it, keeping its last frame showing, so the console and launcher can
@@ -134,21 +132,35 @@ static mp_obj_t launcher_screen_pixel(mp_obj_t x_in, mp_obj_t y_in) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(launcher_screen_pixel_obj, launcher_screen_pixel);
 
-// stop_audio(): stops every sound a script left playing.
-void psp_audio_reset(void);
-static mp_obj_t launcher_stop_audio(void) {
-    psp_audio_reset();
-    return mp_const_none;
+// console_cell(col, row): (character, foreground, background) of a console
+// cell, the colours as 0xRRGGBB. For tests: exact text and colours, which
+// the pixels alone can't tell apart easily.
+static mp_obj_t launcher_console_cell(mp_obj_t col_in, mp_obj_t row_in) {
+    mp_int_t col = mp_obj_get_int(col_in);
+    mp_int_t row = mp_obj_get_int(row_in);
+    if (col < 0 || col >= PSP_CONSOLE_COLUMNS || row < 0 || row >= PSP_CONSOLE_ROWS) {
+        mp_raise_ValueError(MP_ERROR_TEXT("off screen"));
+    }
+    char ch;
+    uint32_t fg, bg;
+    psp_console_cell(col, row, &ch, &fg, &bg);
+    mp_obj_t items[3] = {
+        mp_obj_new_str(&ch, 1),
+        mp_obj_new_int(fg),
+        mp_obj_new_int(bg),
+    };
+    return mp_obj_new_tuple(3, items);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(launcher_stop_audio_obj, launcher_stop_audio);
+static MP_DEFINE_CONST_FUN_OBJ_2(launcher_console_cell_obj, launcher_console_cell);
 
-// stop_network(): disconnects Wi-Fi a script left connected.
-void psp_network_reset(void);
-static mp_obj_t launcher_stop_network(void) {
-    psp_network_reset();
-    return mp_const_none;
+// console_cursor(): the console's cursor as (col, row), for tests.
+static mp_obj_t launcher_console_cursor(void) {
+    int col, row;
+    psp_console_cursor(&col, &row);
+    mp_obj_t items[2] = { MP_OBJ_NEW_SMALL_INT(col), MP_OBJ_NEW_SMALL_INT(row) };
+    return mp_obj_new_tuple(2, items);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(launcher_stop_network_obj, launcher_stop_network);
+static MP_DEFINE_CONST_FUN_OBJ_0(launcher_console_cursor_obj, launcher_console_cursor);
 
 // headless(): True under PPSSPPHeadless, which has no buttons.
 static mp_obj_t launcher_headless(void) {
@@ -177,11 +189,11 @@ static const mp_rom_map_elem_t launcher_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_text), MP_ROM_PTR(&launcher_text_obj) },
     { MP_ROM_QSTR(MP_QSTR_console), MP_ROM_PTR(&launcher_console_obj) },
     { MP_ROM_QSTR(MP_QSTR_buttons), MP_ROM_PTR(&launcher_buttons_obj) },
-    { MP_ROM_QSTR(MP_QSTR_reset_buttons), MP_ROM_PTR(&launcher_reset_buttons_obj) },
+    { MP_ROM_QSTR(MP_QSTR_end_script), MP_ROM_PTR(&launcher_end_script_obj) },
     { MP_ROM_QSTR(MP_QSTR_release_display), MP_ROM_PTR(&launcher_release_display_obj) },
     { MP_ROM_QSTR(MP_QSTR_screen_pixel), MP_ROM_PTR(&launcher_screen_pixel_obj) },
-    { MP_ROM_QSTR(MP_QSTR_stop_audio), MP_ROM_PTR(&launcher_stop_audio_obj) },
-    { MP_ROM_QSTR(MP_QSTR_stop_network), MP_ROM_PTR(&launcher_stop_network_obj) },
+    { MP_ROM_QSTR(MP_QSTR_console_cell), MP_ROM_PTR(&launcher_console_cell_obj) },
+    { MP_ROM_QSTR(MP_QSTR_console_cursor), MP_ROM_PTR(&launcher_console_cursor_obj) },
     { MP_ROM_QSTR(MP_QSTR_headless), MP_ROM_PTR(&launcher_headless_obj) },
     { MP_ROM_QSTR(MP_QSTR_log), MP_ROM_PTR(&launcher_log_obj) },
 
