@@ -40,6 +40,12 @@ for re in "${EXPECTED_FAILURES[@]}"; do
     excludes+=(-e "$re")
 done
 
+# Some tests use unittest, which run-tests.py takes from MicroPython's
+# micropython-lib submodule.
+if [ ! -f "$REPO/micropython/lib/micropython-lib/python-stdlib/unittest/unittest/__init__.py" ]; then
+    git -C "$REPO/micropython" submodule update --init --depth 1 lib/micropython-lib
+fi
+
 mkdir -p "$OUT"
 rm -rf "$OUT/results"
 cd "$REPO/micropython/tests"

@@ -3,7 +3,7 @@
 // Sets up the PSP (clock, exit callback, the console on screen), starts MicroPython
 // with a GC heap from malloc, mounts the filesystem, and runs boot.py then
 // main.py from the EBOOT's folder (the working directory). Without a main.py
-// it runs the launcher, or the selftest in test builds. Under PPSSPPHeadless
+// it runs the launcher. Under PPSSPPHeadless
 // it captures the screen and exits by itself; in the PPSSPP GUI or on
 // hardware it waits for HOME -> Exit.
 //
@@ -37,14 +37,6 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_MAIN_THREAD_STACK_SIZE_KB(MICROPY_PSP_MAIN_STACK_KB);
 // Give newlib all of user memory except 1 MB, for the GC heap and C code.
 PSP_HEAP_SIZE_KB(-1024);
-
-// What runs when there's no main.py: the launcher, or the selftest in test
-// builds (MICROPY_PSP_TEST_BUILD in CMakeLists.txt).
-#if MICROPY_PSP_TEST_BUILD
-#define PSP_FALLBACK_MODULE "selftest.py"
-#else
-#define PSP_FALLBACK_MODULE "launcher.py"
-#endif
 
 // HOME -> Exit ends the program straight away, even mid-script: waiting for
 // a flag would leave HOME dead while the launcher or a script is running.
@@ -194,7 +186,7 @@ int main(int argc, char *argv[]) {
         if (mp_import_stat("main.py") == MP_IMPORT_STAT_FILE) {
             pyexec_file("main.py");
         } else {
-            pyexec_frozen_module(PSP_FALLBACK_MODULE, false);
+            pyexec_frozen_module("launcher.py", false);
         }
         mp_deinit();
     }

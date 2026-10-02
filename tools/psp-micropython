@@ -6,7 +6,8 @@
 This is what MicroPython's tests/run-tests.py calls in place of the unix
 `micropython` binary (see tools/run-mp-tests.sh). It copies the EBOOT into a
 fresh folder with the script as main.py, links in the script's neighbours so
-its imports work, runs it headless and prints what the program printed.
+its imports work (and the modules in MICROPYPATH's folders, in lib/), runs
+it headless and prints what the program printed.
 
 -X options (emit, heapsize, realtime) are accepted and ignored. The exit
 status is 0 when the program finished, 1 on a timeout or emulator failure
@@ -60,6 +61,19 @@ def stage(script, app):
         if name.lower() in ("eboot.pbp", "main.py", "boot.py"):
             continue
         os.symlink(os.path.join(src, name), os.path.join(app, name))
+    # MICROPYPATH, as the unix binary reads it: run-tests.py puts unittest
+    # (from micropython-lib) there. The port has no such variable, so its
+    # modules go in lib/, which is on sys.path after the frozen modules.
+    lib = os.path.join(app, "lib")
+    for folder in os.environ.get("MICROPYPATH", "").split(os.pathsep):
+        if not os.path.isdir(folder):
+            continue
+        for name in os.listdir(folder):
+            path = os.path.join(folder, name)
+            module = name.endswith(".py") or os.path.isfile(os.path.join(path, "__init__.py"))
+            if module and not os.path.exists(os.path.join(lib, name)):
+                os.makedirs(lib, exist_ok=True)
+                os.symlink(path, os.path.join(lib, name))
 
 
 def main():

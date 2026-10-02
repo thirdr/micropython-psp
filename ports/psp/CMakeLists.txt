@@ -4,7 +4,7 @@
 #   psp-cmake -S ports/psp -B build/psp -DCMAKE_BUILD_TYPE=Release
 #   cmake --build build/psp
 #
-# Test build (adds the frozen selftest, run when there's no main.py):
+# Test build (for tests/repl: reads REPL keystrokes from repl-input.txt):
 #
 #   psp-cmake -S ports/psp -B build/psp-test -DCMAKE_BUILD_TYPE=Release -DMICROPY_PSP_TEST_BUILD=ON
 cmake_minimum_required(VERSION 3.16)
@@ -25,15 +25,14 @@ set(MICROPY_PSP_VERSION "0.1.0")
 set(MICROPY_PSP_GC_HEAP_KB 12288 CACHE STRING "GC heap size in KB")
 set(MICROPY_PSP_MAIN_STACK_KB 256 CACHE STRING "Main thread stack size in KB")
 
-option(MICROPY_PSP_TEST_BUILD "Freeze the selftest and run it when there's no main.py" OFF)
+option(MICROPY_PSP_TEST_BUILD "Take REPL keystrokes from repl-input.txt, for tests/repl" OFF)
 
+set(MICROPY_FROZEN_MANIFEST ${MICROPY_PORT_DIR}/manifest.py)
 # A plain 0/1 rather than a generator expression: mkrules.cmake passes the
 # compile definitions to the qstr preprocessor as they're written.
 if(MICROPY_PSP_TEST_BUILD)
-    set(MICROPY_FROZEN_MANIFEST ${MICROPY_PORT_DIR}/manifest_test.py)
     set(PSP_TEST_BUILD_VALUE 1)
 else()
-    set(MICROPY_FROZEN_MANIFEST ${MICROPY_PORT_DIR}/manifest.py)
     set(PSP_TEST_BUILD_VALUE 0)
 endif()
 

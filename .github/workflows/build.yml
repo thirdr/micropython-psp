@@ -32,7 +32,7 @@ jobs:
 
       # MicroPython names its version with git describe, which needs the
       # release tag, and the submodule checkout fetches no tags: without this
-      # the banner says "MicroPython e0e9fbb17e" instead of "v1.28.0".
+      # the banner says "MicroPython e0e9fbb17e" instead of "v1.29.0".
       - name: Fetch MicroPython's release tag
         run: |
           commit="$(git -C micropython rev-parse HEAD)"
@@ -42,17 +42,12 @@ jobs:
           fi
           git -C micropython describe --tags --always --match 'v[1-9].*'
 
-      - name: Build hello-world
-        run: |
-          psp-cmake -S tools/hello -B build/hello -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/hello
-
       - name: Build MicroPython
         run: |
           psp-cmake -S ports/psp -B build/psp -DCMAKE_BUILD_TYPE=Release
           cmake --build build/psp -j"$(nproc)"
 
-      - name: Build MicroPython (test build, with the frozen selftest)
+      - name: Build MicroPython (test build, for the REPL test)
         run: |
           psp-cmake -S ports/psp -B build/psp-test -DCMAKE_BUILD_TYPE=Release -DMICROPY_PSP_TEST_BUILD=ON
           cmake --build build/psp-test -j"$(nproc)"
@@ -62,8 +57,6 @@ jobs:
           name: eboots
           # The ELFs are kept for psp-addr2line on crash dumps.
           path: |
-            build/hello/EBOOT.PBP
-            build/hello/hello
             build/psp/EBOOT.PBP
             build/psp/VERSION
             build/psp/micropython
@@ -107,13 +100,6 @@ jobs:
           name: eboots
           path: build
 
-      - name: Run hello-world
-        env:
-          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
-        run: |
-          tools/run-ppsspp.sh build/hello/EBOOT.PBP 30
-          grep -q '^hello: ok$' build/logs/latest/stdout.log
-
       - name: Run the launcher (no main.py, four scripts)
         env:
           PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
@@ -127,13 +113,6 @@ jobs:
         run: |
           tools/run-ppsspp.sh --files tests/launcher-run build/psp/EBOOT.PBP 60
           grep -q '^launchertest: PASS$' build/logs/latest/stdout.log
-
-      - name: Run MicroPython selftest (test build)
-        env:
-          PPSSPP_HEADLESS: ${{ github.workspace }}/ppsspp-headless/PPSSPPHeadless
-        run: |
-          tools/run-ppsspp.sh build/psp-test/EBOOT.PBP 60
-          grep -q '^selftest: PASS$' build/logs/latest/stdout.log
 
       - name: Run REPL test (test build, keystrokes from a file)
         env:

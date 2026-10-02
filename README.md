@@ -1,7 +1,7 @@
 # MicroPython for the PlayStation Portable (PSP)
 
 Write Python scripts and run them on a PSP. This is a port of
-[MicroPython](https://micropython.org) 1.28 to the PSP. It runs on a PSP with
+[MicroPython](https://micropython.org) 1.29 to the PSP. It runs on a PSP with
 custom firmware and in the [PPSSPP](https://www.ppsspp.org) emulator.
 
 ![The script launcher on a PSP screen: a list of seven .py files](docs/launcher.png)
@@ -270,7 +270,7 @@ start the memory stick's copy with `--prx`.
 **Works:**
 - Most of MicroPython's standard library: `os`, `time`, `json`, `re`,
   `random`, `math`, `struct`, `collections`, `asyncio`, `deflate`, `hashlib`
-  and more. MicroPython's own test suite passes (801 tests).
+  and more. MicroPython's own test suite passes (821 tests).
 - Files on the memory stick, with `open()` and `os`. Scripts run with their
   own folder as the working directory.
 - `time` reads the PSP's real-time clock and time zone.
