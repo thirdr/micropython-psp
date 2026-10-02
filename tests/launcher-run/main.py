@@ -25,15 +25,22 @@ class PressO:
     def __init__(self):
         self.sequence = []
         self.waits = 0
+        self.stop_when_done = False
 
     def __getattr__(self, name):
         return getattr(_launcher, name)
 
     def buttons(self):
         if not self.sequence:
+            if self.stop_when_done:
+                raise StopDriving
             self.waits += 1
             self.sequence = [0, _launcher.CIRCLE, 0]
         return self.sequence.pop(0)
+
+
+class StopDriving(Exception):
+    pass
 
 
 fake = PressO()
@@ -109,6 +116,35 @@ fake.sequence = [0] + [R, 0] * 6 + [D, 0, O, 0]
 top = launcher.show_file("long.py")
 _result("file view stops at the end", top == 100 - launcher.FILE_ROWS, "top={}".format(top))
 os.remove("long.py")
+
+# The list wraps: up from the first script goes to the last, and down from
+# the last back to the first. main() loops forever, so the fake stops it
+# once the presses run out, and draw_list records where the cursor went.
+extra = ["wrap{:02d}.py".format(i) for i in range(15)]
+for name in extra:
+    with open(name, "w") as f:
+        f.write("")
+drawn = []
+real_draw_list = launcher.draw_list
+def recording_draw_list(scripts, selected, top):
+    drawn.append((selected, top))
+    real_draw_list(scripts, selected, top)
+launcher.draw_list = recording_draw_list
+fake.headless = lambda: False
+fake.stop_when_done = True
+fake.sequence = [0, U, 0, D, 0, D, 0, U, 0]
+try:
+    launcher.main()
+except StopDriving:
+    pass
+last = len(extra) + 2 - 1
+expected = [(0, 0), (last, last - launcher.VISIBLE_ROWS + 1), (0, 0), (1, 0), (0, 0)]
+_result("list wraps at both ends", drawn == expected, repr(drawn))
+launcher.draw_list = real_draw_list
+del fake.headless
+fake.stop_when_done = False
+for name in extra:
+    os.remove(name)
 
 launcher.draw_list(scripts, 1, 0)
 _launcher.log("launchertest: {}".format("PASS" if _failures == 0 else "FAIL ({} failed)".format(_failures)))

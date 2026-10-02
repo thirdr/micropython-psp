@@ -1,7 +1,7 @@
 # The script launcher: runs when the EBOOT's folder has no main.py.
 #
 # Lists the .py files in the folder (except boot.py and main.py). Up and down
-# choose, X runs, triangle shows the file (up and down scroll, left and right
+# choose, wrapping round at the ends, X runs, triangle shows the file (up and down scroll, left and right
 # turn a page), HOME exits. After a
 # script ends, or raises an error, its output stays on screen until O.
 #
@@ -222,10 +222,10 @@ def main():
         pressed = keys.next()
         if not scripts:
             continue
-        if pressed & ui.UP and selected > 0:
-            selected -= 1
-        elif pressed & ui.DOWN and selected < len(scripts) - 1:
-            selected += 1
+        if pressed & ui.UP:
+            selected = (selected - 1) % len(scripts)
+        elif pressed & ui.DOWN:
+            selected = (selected + 1) % len(scripts)
         elif pressed & ui.CROSS:
             run_script(scripts[selected])
             scripts = find_scripts()

@@ -2,7 +2,7 @@ MicroPython for the PlayStation Portable (PSP)
 ==============================================
 
 MicroPython (a small Python 3) that runs on a PSP with custom firmware,
-such as ARK-4, and in the PPSSPP emulator.
+such as 6.60 PRO-C, and in the PPSSPP emulator.
 
 Installing
 ----------
@@ -96,8 +96,10 @@ Wi-Fi
     wlan.disconnect()
 
 Add your network in Settings > Network Settings first, and turn the Wi-Fi
-switch on. socket is MicroPython's standard module (TCP, UDP, timeouts,
-select.poll). requests does plain http:// only; there's no HTTPS yet.
+switch on. The PSP only knows WEP and WPA. For WPA2, install the wpa2psp
+plugin (https://github.com/Kethen/wpa2psp; ARK-4 has it built in). socket
+is MicroPython's standard module (TCP, UDP, timeouts, select.poll).
+requests does plain http:// only; there's no HTTPS yet.
 
 Most standard modules are there too: os, time, json, re, random, math,
 struct, collections, asyncio and more.

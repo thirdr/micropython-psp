@@ -24,7 +24,7 @@ There's no release to download yet, so make the zip yourself:
    `PSP/GAME/MicroPython/EBOOT.PBP`.
 3. On the PSP, open **Game → Memory Stick → MicroPython**.
 
-It has been tested on a PSP-1000 running ARK-4, and in PPSSPP 1.20.4. Other
+It has been tested on a PSP-1000 running 6.60 PRO-C, and in PPSSPP 1.20.4. Other
 models and custom firmwares should work too, but haven't been tried yet.
 
 ## Running scripts
@@ -160,8 +160,10 @@ wlan.disconnect()
 ```
 
 - The PSP connects with the networks saved in its own Settings > Network
-  Settings, so add yours there first, and turn the Wi-Fi switch on. Which
-  security types work depends on your PSP's firmware.
+  Settings, so add yours there first, and turn the Wi-Fi switch on. The
+  PSP only knows WEP and WPA. For WPA2, install the
+  [wpa2psp](https://github.com/Kethen/wpa2psp) plugin (ARK-4 has it built
+  in); that's how it was tested on 6.60 PRO-C.
 - `socket` is MicroPython's standard module: TCP and UDP, `getaddrinfo`,
   timeouts, non-blocking sockets and `select.poll`.
 - `requests` (from micropython-lib) does plain `http://` only: there's no
