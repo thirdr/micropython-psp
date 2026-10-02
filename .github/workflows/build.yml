@@ -67,6 +67,7 @@ jobs:
             build/psp/EBOOT.PBP
             build/psp/VERSION
             build/psp/micropython
+            build/psp/micropython.prx
             build/psp-test/EBOOT.PBP
             build/psp-test/micropython
 

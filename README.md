@@ -45,8 +45,8 @@ list (after `boot.py`, if there is one). Modules in a `lib/` folder can be
 imported.
 
 The zip comes with examples: `hello`, `buttons`, `stick`, `dice`, `clock`,
-`notes` and `tasks`, plus `bounce`, `sketch` and `clockface` for graphics
-`keys` for sound and `wifi` for networking.
+`notes`, `tasks` and `colours`, plus `bounce`, `sketch` and `clockface` for
+graphics, `keys` for sound and `wifi` for networking.
 They're in [`examples/`](examples) too.
 
 `demos` is a tour of PicoVector: 24 short demos from Pimoroni's Tufty 2350
@@ -84,6 +84,39 @@ while True:
 | `psp.freq()` | the clock as `(cpu, bus)` in MHz; `psp.freq(222)` sets it |
 | `psp.emulator()` | `True` in PPSSPP |
 | `psp.VERSION` | the port's version |
+
+## Text: `print()` and the `ansi` module
+
+`print()` writes to the screen: 68 columns by 34 rows of text, which wraps
+at the right edge and scrolls up at the bottom. ANSI codes in the text clear
+the screen, move the cursor and set colours, as in a terminal. The `ansi`
+module has them ready to use:
+
+```python
+import ansi
+
+ansi.clear()                  # clears the screen, cursor at the top left
+ansi.move(10, 5)              # column 10, row 5 (both from 0)
+print(ansi.RED + "Game over" + ansi.RESET)
+print(ansi.BG_BLUE + ansi.BRIGHT_WHITE + " Score: 100 " + ansi.RESET)
+```
+
+| In `ansi` | Does |
+| --- | --- |
+| `clear()`, `clear_line()` | clears the screen, or the line from the cursor |
+| `move(col, row)` | moves the cursor |
+| `RED`, `GREEN`, ... | text colour: `BLACK RED GREEN YELLOW BLUE MAGENTA CYAN WHITE` |
+| `BRIGHT_RED`, ... | the bright versions |
+| `BG_RED`, ... | background colour |
+| `BRIGHT`, `REVERSE`, `RESET` | bright text, swapped colours, back to white on black |
+| `COLUMNS`, `ROWS` | the screen's size in characters: 68 and 34 |
+
+The screen also understands the codes themselves (`"\x1b[2J"` and so on):
+cursor moves up, down, left and right, saving and restoring the cursor, and
+the 256-colour codes for the first 16 colours. Codes it doesn't know are
+dropped. Characters past ASCII show as `?`. During a REPL session over USB,
+the same codes work in the terminal on the computer. `colours.py` shows the
+16 colours, and a timer redrawn in place.
 
 ## Graphics: `picovector` and `pspdisplay`
 
@@ -214,8 +247,22 @@ need the REPL.
 
 The prompt has history, tab completion, paste mode (Ctrl-E) and Ctrl-C to stop
 running code; Ctrl-D starts MicroPython afresh. The session shows on the
-PSP's screen too. Other `mpremote` commands work through the same script,
-for example `tools/psp-repl.sh run script.py`.
+PSP's screen too. Other `mpremote` commands work through the same script
+(leave out the word `mpremote`). A path starting with `:` is on the PSP;
+any other path is on the computer:
+
+```sh
+tools/psp-repl.sh ls                                # the PSP's working folder
+tools/psp-repl.sh run examples/hello.py             # run a file from the computer
+tools/psp-repl.sh cp examples/hello.py :hello2.py   # computer to PSP
+tools/psp-repl.sh cp :notes.txt /tmp/               # PSP to computer
+tools/psp-repl.sh mount examples exec "import hello"
+                    # the PSP imports from a folder on the computer
+```
+
+Started from the build folder, the PSP's working folder is `host0:/`; give
+the memory stick's files in full (`:ms0:/PSP/GAME/MicroPython/notes.txt`), or
+start the memory stick's copy with `--prx`.
 
 ## What works and what doesn't
 
@@ -229,8 +276,6 @@ for example `tools/psp-repl.sh run script.py`.
 - About 12 MB of memory for Python, sized to fit a PSP-1000.
 
 **Doesn't work yet:**
-- **Text from `print()` doesn't scroll.** It goes to the PSP's debug screen,
-  and when the screen fills up it wraps back to the top.
 - **The REPL needs a computer.** It runs over USB with PSPLINK (see above);
   on the PSP alone, you run scripts from the launcher.
 - **No HTTPS, USB or threads.**
