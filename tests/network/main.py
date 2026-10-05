@@ -114,15 +114,19 @@ _check("non-blocking recv", nonblocking)
 
 
 def poll():
+    # While the PSP waits, PPSSPPHeadless runs emulated time far faster than
+    # real time (a poll(2000) lasts ~20 ms), so a slow host can miss it. A
+    # blocking recv waits for the echo in real time; poll then sees the rest.
     s = socket.socket()
     s.connect(ECHO)
     p = select.poll()
     p.register(s, select.POLLIN)
     before = p.poll(0)
-    s.send(b"x")
+    s.send(b"xy")
+    first = s.recv(1)
     after = p.poll(2000)
     s.close()
-    return before == [] and len(after) == 1, repr((before, after))
+    return before == [] and first == b"x" and len(after) == 1, repr((before, first, after))
 _check("poll", poll)
 
 
