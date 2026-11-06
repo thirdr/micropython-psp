@@ -92,6 +92,18 @@ Fonts load from files, with a folder in the name (fonts/sins.ppf, next to
 the examples). While a script draws, print() doesn't reach the screen; when
 it ends, the last frame stays until you press O.
 
+PicoVector's 3D module, pico3d, draws on the PSP's 3D chip (the GE):
+
+    import pico3d
+    from pspdisplay import screen, update, gpu3d
+    gpu3d(queue=True)     # queue render() calls until update()
+    surface = pico3d.surface(screen)
+    surface.render(mesh, model, view_projection, material, light)
+    update()
+
+Normal-mapped materials, surfaces over 512x320 and textures over 512
+pixels are drawn by the CPU instead. gpu3d() returns the GE's counts.
+
 Sound
 -----
     import audio

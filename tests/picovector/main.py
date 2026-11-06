@@ -148,6 +148,126 @@ def hsv():
 _check("hsv colour", hsv)
 
 
+# pico3d draws on the GE (pspdisplay.gpu3d), the CPU only for what the GE can't.
+from array import array
+import pico3d
+
+VIEW = pico3d.mat4.look_at(pico3d.vec3(0, 0, 3), pico3d.vec3(0, 0, 0), pico3d.vec3(0, 1, 0))
+VP = pico3d.mat4.perspective(60, 480 / 272, 0.1, 50) * VIEW
+QUAD = pico3d.mesh(positions=array("f", (-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0)),
+                   indices=array("H", (0, 1, 2, 0, 2, 3)),
+                   normals=array("f", (0, 0, 1) * 4),
+                   uvs=array("f", (0, 1, 1, 1, 1, 0, 0, 0)),
+                   tangents=array("f", (1, 0, 0) * 4))
+SUN = pico3d.light(direction=pico3d.vec3(-0.3, -0.4, -1), color=color.rgb(200, 200, 200),
+                   ambient=color.rgb(40, 40, 40))
+surface = pico3d.surface(screen)
+
+
+def lit(rgb):
+    return pico3d.material(color=color.rgb(*rgb), shading=pico3d.material.GOURAUD)
+
+
+def quad_frame(ge, material=None, model=None):
+    pspdisplay.gpu3d(ge)
+    fresh()
+    surface.clear_depth()
+    surface.render(QUAD, model or pico3d.mat4(), VP, material or lit((255, 160, 40)), SUN)
+    update()
+    row = [on_screen(x, 136) for x in range(480)]
+    return on_screen(240, 136), sum(1 for p in row if p != 0x000028)
+
+
+def ge_draws():
+    before = pspdisplay.gpu3d()
+    centre, width = quad_frame(True)
+    after = pspdisplay.gpu3d()
+    return (centre != 0x000028 and width > 50 and after["draws"] > before["draws"]
+            and after["fallbacks"] == before["fallbacks"]), "{:06x} {} {}".format(centre, width, after)
+_check("pico3d draws on the GE", ge_draws)
+
+
+def ge_matches_cpu():
+    ge, ge_width = quad_frame(True)
+    cpu, cpu_width = quad_frame(False)
+    pspdisplay.gpu3d(True)
+    return near(ge, cpu, 8) and abs(ge_width - cpu_width) <= 2, "GE {:06x} {} px, CPU {:06x} {} px".format(
+        ge, ge_width, cpu, cpu_width)
+_check("lit GE quad matches the CPU's", ge_matches_cpu)
+
+
+def depth_carries():
+    fresh()
+    surface.clear_depth()
+    surface.render(QUAD, pico3d.mat4(), VP, lit((255, 0, 0)), SUN)
+    surface.render(QUAD, pico3d.mat4().translate(0, 0, -1), VP, lit((0, 0, 255)), SUN)
+    update()
+    p = on_screen(240, 136)
+    r, g, b = rgb(p)
+    return r > b, "{:06x}".format(p)
+_check("a nearer render() hides a farther one", depth_carries)
+
+
+def queued():
+    pspdisplay.gpu3d(True, queue=True)
+    fresh()
+    surface.clear_depth()
+    surface.render(QUAD, pico3d.mat4(), VP, lit((255, 160, 40)), SUN)
+    at = (136 * 480 + 240) * 4
+    waiting = bytes(screen.raw[at:at + 3]) == b"\x00\x00\x28"
+    pspdisplay.gpu3d_sync()
+    drawn = bytes(screen.raw[at:at + 3]) != b"\x00\x00\x28"
+    pspdisplay.gpu3d(queue=False)
+    return waiting and drawn, "waiting {} drawn {}".format(waiting, drawn)
+_check("queued renders show at gpu3d_sync()", queued)
+
+
+def near_plane():
+    # a floor running under the camera: drawn below the horizon, not above
+    slab = pico3d.mesh(positions=array("f", (-4, -0.5, 2, 4, -0.5, 2, 4, -0.5, -20, -4, -0.5, -20)),
+                       indices=array("H", (0, 1, 2, 0, 2, 3)))
+    eye = pico3d.mat4.perspective(70, 480 / 272, 0.1, 50) * pico3d.mat4.look_at(
+        pico3d.vec3(0, 0, 0), pico3d.vec3(0, 0, -1), pico3d.vec3(0, 1, 0))
+    fresh()
+    surface.clear_depth()
+    flat = pico3d.material(color=color.rgb(255, 255, 255), shading=pico3d.material.UNLIT, double_sided=True)
+    surface.render(slab, pico3d.mat4(), eye, flat, None)
+    update()
+    below = sum(1 for x in range(0, 480, 4) if on_screen(x, 260) == 0xFFFFFF)
+    above = sum(1 for x in range(0, 480, 4) if on_screen(x, 120) != 0x000028)
+    return below == 120 and above == 0, "below {} above {}".format(below, above)
+_check("a floor through the camera is clipped", near_plane)
+
+
+def scene_on_ge():
+    pspdisplay.gpu3d(True)
+    before = pspdisplay.gpu3d()["draws"]
+    fresh()
+    surface.clear_depth()
+    sc = pico3d.scene(surface, meshes=2)
+    sc.add(QUAD, pico3d.mat4().translate(-1.2, 0, 0).scale(0.5), VP, lit((255, 0, 0)), SUN)
+    sc.add(QUAD, pico3d.mat4().translate(1.2, 0, 0).scale(0.5), VP, lit((0, 255, 0)), SUN)
+    counts = (sc.meshes, sc.vertices, sc.triangles)
+    surface.draw(sc)
+    update()
+    left, right = rgb(on_screen(160, 136)), rgb(on_screen(320, 136))
+    return (counts == (2, 8, 4) and left[0] > left[1] and right[1] > right[0]
+            and pspdisplay.gpu3d()["draws"] == before + 2), "{} {} {}".format(counts, left, right)
+_check("a scene draws on the GE", scene_on_ge)
+
+
+def normal_map_falls_back():
+    bumps = image(8, 8)
+    bumps.pen = color.rgb(128, 128, 255)
+    bumps.clear()
+    m = pico3d.material(color=color.rgb(255, 160, 40), normal_map=bumps)
+    before = pspdisplay.gpu3d()["fallbacks"]
+    centre, width = quad_frame(True, m)
+    return (pspdisplay.gpu3d()["fallbacks"] == before + 1 and centre != 0x000028,
+            "{:06x} {}".format(centre, pspdisplay.gpu3d()))
+_check("normal maps fall back to the CPU", normal_map_falls_back)
+
+
 def release():
     _launcher.release_display()
     kept = on_screen(0, 0) == 0x000028   # the last frame stays showing

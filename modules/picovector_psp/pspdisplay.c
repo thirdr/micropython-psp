@@ -7,6 +7,10 @@
 // format, so update() copies them to VRAM as they are: into the framebuffer
 // not showing, which then shows from the next vblank.
 //
+// pico3d draws on the GE (pico3d_ge.cpp). gpu3d() switches it and its
+// queuing, gpu3d_sync() finishes what's queued, and update() does that too
+// before it shows the screen.
+//
 // While a script has the screen, the console stays off it (print()
 // still reaches the logs). The launcher calls psp_display_release() when the
 // script ends: the last frame stays showing, and the next script that asks
@@ -22,6 +26,7 @@
 #include "py/objarray.h"
 #include "py/runtime.h"
 
+#include "pico3d_ge.h"
 #include "psp_display.h"
 
 #define WIDTH (480)
@@ -37,6 +42,8 @@
 // need their own root pointer to stay alive.
 MP_REGISTER_ROOT_POINTER(mp_obj_t psp_display_screen);
 MP_REGISTER_ROOT_POINTER(void *psp_display_pixels);
+// The pixels and textures a queued pico3d batch reads (pico3d_ge.cpp).
+MP_REGISTER_ROOT_POINTER(void *pico3d_ge_keep[16]);
 
 // The VRAM framebuffer showing. Buffer 0 is the one the console and
 // the launcher draw into; 1 sits right after it.
@@ -56,6 +63,7 @@ bool psp_display_active(void) {
 }
 
 void psp_display_release(void) {
+    pico3d_ge_reset();
     if (!psp_display_active()) {
         return;
     }
@@ -86,11 +94,14 @@ static mp_obj_t get_screen(void) {
 
 // update(): show the screen, from the next vblank, and wait for it.
 static mp_obj_t pspdisplay_update(void) {
+    pico3d_ge_sync();
     get_screen();
     const uint8_t *src = MP_STATE_VM(psp_display_pixels);
     int back = front ^ 1;
     uint8_t *dst = vram(back);
-    if (((uintptr_t)src & 15) == 0) {
+    if (pico3d_ge_copy_to_vram(src, WIDTH, dst, VRAM_STRIDE, WIDTH, HEIGHT)) {
+        // the GE's block copy: one transfer for the whole frame
+    } else if (((uintptr_t)src & 15) == 0) {
         // DMA, a row at a time, as the rows are further apart in VRAM.
         sceKernelDcacheWritebackRange(src, SCREEN_BYTES);
         for (int y = 0; y < HEIGHT; y++) {
@@ -109,6 +120,44 @@ static mp_obj_t pspdisplay_update(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(pspdisplay_update_obj, pspdisplay_update);
 
+// gpu3d(enable=None, queue=None): pico3d on the GE (True, the default) or the
+// CPU, and whether render()/draw() queue until gpu3d_sync() or update()
+// (False by default). Returns the GE's stats either way.
+static mp_obj_t pspdisplay_gpu3d(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    enum { ARG_enable, ARG_queue };
+    static const mp_arg_t allowed[] = {
+        { MP_QSTR_enable, MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_queue, MP_ARG_OBJ, {.u_obj = mp_const_none} },
+    };
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed), allowed, args);
+    int enable = args[ARG_enable].u_obj == mp_const_none ? -1 : mp_obj_is_true(args[ARG_enable].u_obj);
+    int queue = args[ARG_queue].u_obj == mp_const_none ? -1 : mp_obj_is_true(args[ARG_queue].u_obj);
+    if (enable >= 0 || queue >= 0) {
+        pico3d_ge_set(enable, queue);
+    }
+    pico3d_ge_stats_t s;
+    pico3d_ge_get_stats(&s);
+    mp_obj_t d = mp_obj_new_dict(8);
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_enabled), mp_obj_new_bool(s.enabled));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_queue), mp_obj_new_bool(s.queue));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_batches), mp_obj_new_int_from_uint(s.batches));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_draws), mp_obj_new_int_from_uint(s.draws));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_triangles), mp_obj_new_int_from_uint(s.triangles));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_fallbacks), mp_obj_new_int_from_uint(s.fallbacks));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_busy_us), mp_obj_new_int_from_uint(s.busy_us));
+    mp_obj_dict_store(d, MP_OBJ_NEW_QSTR(MP_QSTR_last_us), mp_obj_new_int_from_uint(s.last_us));
+    return d;
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pspdisplay_gpu3d_obj, 0, pspdisplay_gpu3d);
+
+// gpu3d_sync(): the GE finishes what's queued, and the images get the result.
+static mp_obj_t pspdisplay_gpu3d_sync(void) {
+    pico3d_ge_sync();
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(pspdisplay_gpu3d_sync_obj, pspdisplay_gpu3d_sync);
+
 // screen is made on first use, so importing the module alone leaves the
 // console on screen. MP_OBJ_NULL for anything else: no such attribute.
 static mp_obj_t pspdisplay_getattr(mp_obj_t attr) {
@@ -123,6 +172,8 @@ static const mp_rom_map_elem_t pspdisplay_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_pspdisplay) },
     { MP_ROM_QSTR(MP_QSTR___getattr__), MP_ROM_PTR(&pspdisplay_getattr_obj) },
     { MP_ROM_QSTR(MP_QSTR_update), MP_ROM_PTR(&pspdisplay_update_obj) },
+    { MP_ROM_QSTR(MP_QSTR_gpu3d), MP_ROM_PTR(&pspdisplay_gpu3d_obj) },
+    { MP_ROM_QSTR(MP_QSTR_gpu3d_sync), MP_ROM_PTR(&pspdisplay_gpu3d_sync_obj) },
     { MP_ROM_QSTR(MP_QSTR_WIDTH), MP_ROM_INT(WIDTH) },
     { MP_ROM_QSTR(MP_QSTR_HEIGHT), MP_ROM_INT(HEIGHT) },
 };
