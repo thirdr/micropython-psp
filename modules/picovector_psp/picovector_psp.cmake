@@ -34,12 +34,34 @@ target_compile_definitions(${MICROPY_TARGET} PRIVATE PICO_BUILD)
 # where int32_t is long, as it is on the PSP too.
 target_compile_definitions(${MICROPY_TARGET} PRIVATE PICO=1)
 
+# pico3d's depth buffer is picovector's working buffer, and a surface bigger
+# than it is drawn in bands that don't depth-test against each other's
+# render() calls. The badge sizes it to fit its SRAM; the PSP has the room for
+# 512x320 (the biggest surface the GE takes), so any such surface is one band
+# on the CPU fallback too, as it is on the GE.
+get_target_property(PV_DEFINITIONS usermod_picovector INTERFACE_COMPILE_DEFINITIONS)
+list(TRANSFORM PV_DEFINITIONS REPLACE "^PV_WORKING_BUFFER_SIZE=.*" "PV_WORKING_BUFFER_SIZE=327680")
+set_target_properties(usermod_picovector PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${PV_DEFINITIONS}")
+
 set(PICOVECTOR_PSP_SOURCES
     ${PICOVECTOR_PSP_DIR}/pspdisplay.c
     ${PICOVECTOR_PSP_DIR}/picovector_psp_compat.c
+    ${PICOVECTOR_PSP_DIR}/pico3d_ge.cpp
 )
 
 target_sources(${MICROPY_TARGET} PRIVATE ${PICOVECTOR_PSP_SOURCES})
+
+# pico3d on the GE (pico3d_ge.cpp): the bindings' calls into pico3d's draw,
+# scene and depth-clear functions, and the scene constructor, go to its
+# wrappers first. pspgu goes before the port's pspge, which it needs.
+target_link_libraries(${MICROPY_TARGET} PRIVATE pspgu)
+target_link_options(${MICROPY_TARGET} PRIVATE
+    -Wl,--wrap=_ZN10picovector16pico3d_draw_meshEPNS_15pico3d_target_tEPKNS_13pico3d_mesh_tEPKNS_6mat4_tES7_PKNS_17pico3d_material_tENS_16pico3d_shading_tEPKNS_14pico3d_light_tEPNS_15pico3d_vcache_tES7_
+    -Wl,--wrap=_ZN10picovector16pico3d_scene_addEPNS_14pico3d_scene_tEPKNS_15pico3d_target_tEPKNS_13pico3d_mesh_tEPKNS_6mat4_tESA_PKNS_17pico3d_material_tENS_16pico3d_shading_tEPKNS_14pico3d_light_tESA_PPKcb
+    -Wl,--wrap=_ZN10picovector17pico3d_scene_drawEPNS_14pico3d_scene_tEPNS_15pico3d_target_tEit
+    -Wl,--wrap=_ZN10picovector18pico3d_depth_clearEPNS_15pico3d_target_tEt
+    -Wl,--wrap=scene_make_new_impl
+)
 
 list(APPEND MICROPY_SOURCE_QSTR ${MICROPY_SOURCE_USERMOD} ${PICOVECTOR_PSP_SOURCES})
 
